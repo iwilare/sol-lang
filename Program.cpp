@@ -4,97 +4,87 @@ public:
     SolException("CommandLine", message) {}
 };
 
-struct SolState {
-  bool Debug = true;
-  bool REPL = false;
-  bool SolBase = true;
-  bool InitializeEnvironment = true;
-  vector<string> files;
-  Environment *GlobalEnvironment = new Environment();
-  
-  bool Multiline = false;
-  bool Skip = false;
-};
 void printGreeting() {
   cout<<"                 Sol"<<endl;
-  cout<<"              Version "<<VERSION<<endl;
+  cout<<"              Version "<<Version<<endl;
   cout<<"       Copyright (C) 2016 Iwilare"<<endl;
   cout<<endl;
 }  
-void parseCharacterOption(SolState &state, char c) {
-  switch(c) {
-  case 'h':
-    printGreeting();
-    cout<<"--- Command line options ---"<<endl;
-    cout<<"   <filename>  Evaluate the file"<<endl;
-    cout<<"   -h          Display this help"<<endl;
-    cout<<"--- Activate/deactivate options ---"<<endl;
-    cout<<"   -i          REPL                              "
-      " (default: "<<(state.REPL?"true":"false")<<")"<<endl;
-    cout<<"   -b          Sol.sol base file evaluation      "
-      " (default: "<<(state.SolBase?"true":"false")<<")"<<endl;
-    cout<<"   -d          Debug mode                        "
-      " (default: "<<(state.Debug?"true":"false")<<")"<<endl;
-    cout<<"   -e          Global environment initialization "
-      " (default: "<<(state.Debug?"true":"false")<<")"<<endl;
-    exit(0);
-    break;
-  case 'd':
-    state.Debug = !state.Debug;
-    break;
-  case 'i':
-    state.REPL = !state.REPL;
-    break;
-  case 'b':
-    state.SolBase = !state.SolBase;
-    break;
-  case 'e':
-    state.InitializeEnvironment = !state.InitializeEnvironment;
-    break;
-  default:
-    throw CommandLineError("Unrecognized option \"-" + std::string(1,c) + "\".");
-  }
-}
-void parseOption(SolState &state, char *arg) {
-  string argument(arg);
-  if(argument[0] == '-')
-    for(int i=1; i<argument.length(); i++)
-      parseCharacterOption(state, argument[i]);
-  else
-    state.files.push_back(argument);
-}
-void logicallyImplyState(SolState &state) {
-  if(state.files.size() == 0)
-    state.REPL = true;
-}
 
-Sol *completeEvalSource(SolState state, CharacterStream *stream) {
+bool startsWith(string s, string start) { return s. substr(0,start.size()) == start; }
+class SolState {
+public:
+  bool REPL = false;
+
+  bool REPLPrint = true;
+  bool SolBase = true;
+
+  vector<string> Files;
+  Environment GlobalEnvironment = EnvironmentCreate();
+  
+  bool Multiline = false;
+  bool Skip = false;
+  SolState(int argn, char *args[]) {
+    for(int i=1; i<argn; i++)
+      parseOption(args[i]);
+    logicallyImply();
+  }
+  void parseOption(char *arg) {
+    string argument(arg);
+    if(argument[0] != '-')
+      Files.push_back(argument);
+    else
+      if(argument == "-h") {
+	printGreeting();
+	cout<<"------ Command line options--------"<<endl;
+	cout<<"   <filename>  Evaluate the file"<<endl;
+	cout<<"   -h          Display this help"<<endl;
+	cout<<"--- Activate/deactivate options ---"<<endl;
+	cout<<"   -i              REPL      "
+	  " (default: "<<(REPL?"true":"false")<<")"<<endl;
+	cout<<"---------- Debug options-----------"<<endl;
+	cout<<"   -no-sol         Sol.sol base file evaluation      "<<endl;
+	cout<<"   -no-repl-print  Disable REPL result printing      "<<endl;
+	cout<<"   -d<option>      Debug option                      "<<endl;
+	exit(0);
+      }
+      else if(argument == "-i")
+	REPL = true;
+      else if(argument == "-no-sol")
+	SolBase = false;
+      else if(argument == "-no-repl-print")
+	REPLPrint = false;
+      else if(startsWith(argument, "-d")){
+	string streamName = argument.substr(2);
+	LogStream::switchLog(streamName);
+      } else
+	throw CommandLineError("Unrecognized option \"" + argument + "\".");
+  }
+  void logicallyImply() {
+    if(Files.size() == 0)
+      REPL = true;
+  }
+};
+
+Sol completeEvalSource(SolState &state, CharacterStream *stream) {
   Tokenizer *tokenizer = new Tokenizer(stream);
-  if(state.Debug) {
-    cout<<"--- Tokenizer --------------------------------------"<<endl;
+  if(LogREPL.isActive()) {
+    LogREPL<<"----- Tokenizer"<<LogEnd;
     TokenizerState *state = tokenizer->saveState();
     while(tokenizer->hasTokens()) {
-      cout<<tokenizer->getToken().toString()<<endl;
+      LogREPL<<tokenizer->getToken().toString()<<LogEnd;
       tokenizer->nextToken();
     }
     tokenizer->restoreState(state);
   }
-  if(state.Debug)
-    cout<<"--- Parser -----------------------------------------"<<endl;
+  LogREPL<<"----- Parser"<<LogEnd;
   Parser parser(tokenizer);
   Atom *atom = parser.parse();
-  if(state.Debug)
-    cout<<atom->toString()<<endl;
-  if(state.Debug)
-    cout<<"--- Result -----------------------------------------"<<endl;
-  try {
-    return eval(0, atom, state.GlobalEnvironment);
-  } catch(SolContinuation c) {
-    return c.returnValue;
-  }
+  LogREPL<<atom->toString()<<LogEnd;
+  LogREPL<<"----- Result"<<LogEnd;
+  return eval(atom, state.GlobalEnvironment);
 }
 
-bool startsWith(string s, char c) { return s[0] == c; }
 void interpretCommand(SolState &state, string command) {
   state.Multiline = false;
   state.Skip = true;
@@ -103,26 +93,31 @@ void interpretCommand(SolState &state, string command) {
     state.Skip = false;
   }
   // Check
-  if(startsWith(command, ':')) {
+  if(startsWith(command, ":")) {
     command = command.substr(1);
-    if(startsWith(command, 'e'))
+    if(startsWith(command, "e"))
       try {
-	// Check
-	completeEvalSource(state, new FileStream(command.substr(2)));
+	if(command.size() < 2)
+	  throw RuntimeException("Expected space after file evaluation command.");
+      	completeEvalSource(state, new FileStream(command.substr(2)));
       } catch(SolException e) {
 	cout<<e.what()<<endl;
       }
-    else if(startsWith(command, 'q'))
+    else if(startsWith(command, "q"))
       exit(0);
-    else if(startsWith(command, 'v'))
+    else if(startsWith(command, "v"))
       printGreeting();
-    else if(startsWith(command, 'd'))
-      state.Debug = !state.Debug;
-    else if(startsWith(command, 'h') or startsWith(command, '?')) {
+    else if(startsWith(command, "d")) {
+      if(command.size() < 2)
+	throw RuntimeException("Invalid Log switch command format.");
+      string streamName = command.substr(2);
+      LogStream::switchLog(streamName);
+    }
+    else if(startsWith(command, "h") or startsWith(command, "?")) {
       cout<<"--- REPL commands ---"<<endl;
       cout<<"   :e <filename>    Evaluate the file"<<endl;
+      cout<<"   :d <option>      Debug mode switch"<<endl;
       cout<<"   :q               Exit the program"<<endl;
-      cout<<"   :d               Debug mode"<<endl;
       cout<<"   :v               Display version"<<endl;
       cout<<"   :h or :?         Display this help"<<endl;
       cout<<"   <empty line>     Enable multiline mode"<<endl;
@@ -133,44 +128,35 @@ void interpretCommand(SolState &state, string command) {
 }
 
 int main(int argn, char *args[]) {
-  cout<<"BEFORE CREATION OF TIME ITSELF:"<<endl;
-  SolState state;
-  state.GlobalEnvironment->reference();
+  SolState state(argn, args);
   
-  for(int i=1; i<argn; i++)
-    parseOption(state, args[i]);
-  logicallyImplyState(state);
-  cout<<"BEFORE CREATION OF TIME ITSELF:"<<endl;
-  
-  if(state.Debug) cout<<"--- Initializing classes... ------------------------"<<endl;
+  LogREPL<<"Initializing classes..."<<LogEnd;
   initializeClasses();
-  if(state.Debug) cout<<"--- Starting Class reification... ------------------"<<endl;
+  LogREPL<<"Starting Class reification..."<<LogEnd;
   classReification();
 
-  if(state.InitializeEnvironment) {
-    if(state.Debug)
-      cout<<"--- Initializing global environment... -------------"<<endl;
-    initializeGlobalEnvironment(state.GlobalEnvironment);
-  }
+  LogREPL<<"Initializing global environment..."<<LogEnd;
+  initializeGlobalEnvironment(state.GlobalEnvironment);
+  
   if(state.SolBase)
     try {
-      if(state.Debug)
-	cout<<"--- Evaluation Sol.sol... --------------------------"<<endl;
+      LogREPL<<"Evaluating Sol.sol..."<<LogEnd;
       completeEvalSource(state, new FileStream("Sol.sol"));      
     } catch(SolException e) {
+      GlobalEvaluationStackCount = 0;
       cout<<e.what()<<endl;
     }
-  if(state.Debug) cout<<"--- Initialization complete. -----------------------"<<endl;
+  LogREPL<<"Initialization complete."<<LogEnd;
   
-  vector<string> files;
-  for(string file : files)
+  for(string file : state.Files)
     try {
       completeEvalSource(state, new FileStream(file));
     } catch(SolException e) {
+      GlobalEvaluationStackCount = 0;
       cout<<e.what()<<endl;
     }
  
-  if(state.REPL) {
+ if(state.REPL) {
     printGreeting();
     while(true)
       try {
@@ -184,11 +170,13 @@ int main(int argn, char *args[]) {
 	  stream = new MultilineReplStream("| ");
 	else
 	  stream = new StringStream("<input>", s);
-	Sol *result = completeEvalSource(state, stream);
-	if(state.Debug)
-	  cout<<"--- Sending toString... ----------------------------"<<endl;
-	result->send("toString")->send("printLine")->finalize();
+	Sol result = completeEvalSource(state, stream);
+	LogREPL<<"Sending toString..."<<LogEnd;
+	if(result != nullptr)
+	  if(state.REPLPrint)
+	    result->send("toString")->send("printLine");
       } catch(SolException e) {
+	GlobalEvaluationStackCount = 0;
 	cout<<e.what()<<endl;
       }
   }

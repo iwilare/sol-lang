@@ -12,6 +12,6 @@ public:
   void advanceNextLine() { line++; position=0; }
   void advanceNextCharacter() { position++; }
   string toString() {
-    return filename + ":" + to_string(line+1) + ":" + to_string(position+1);
+    return filename + ":" + intToString(line+1) + ":" + intToString(position+1);
   }
 };

@@ -2,7 +2,7 @@ class Token {
 public:
   enum Type { integerT, doubleT, stringT, characterT,
 	      symbolT, identifierT, keywordT, binaryOperatorT,
-	      returnTokenT, sequenceSeparatorT, pipeT, methodMarkT,
+	      sequenceSeparatorT, pipeT, methodMarkT,
 	      vectorStartT, vectorEndT, vectorSeparatorT,
 	      lambdaStartT, lambdaSeparatorT, lambdaEndT,
 	      parenthesisOpenT, parenthesisCloseT,
@@ -33,7 +33,6 @@ public:
       type == Type::symbolT or
       type == Type::lambdaStartT or
       type == Type::methodMarkT or
-      type == Type::returnTokenT or
       type == Type::vectorStartT or
       type == Type::parenthesisOpenT;
   }
@@ -42,9 +41,9 @@ public:
     case Type::identifierT:
       return "Identifier " + identifier;
     case Type::integerT:
-      return "Integer " + to_string(integerValue);
+      return "Integer " + intToString(integerValue);
     case Type::doubleT:
-      return "Double " + to_string(doubleValue);
+      return "Double " + doubleToString(doubleValue);
     case Type::stringT:
       return "String \"" + stringValue + "\"";
     case Type::characterT:
@@ -55,8 +54,6 @@ public:
       return "Keyword " + keyword;
     case Type::binaryOperatorT:
       return "BinaryOperator " + binaryOperator;
-    case Type::returnTokenT:
-      return "^";
     case Type::sequenceSeparatorT:
       return ".";
     case Type::pipeT:

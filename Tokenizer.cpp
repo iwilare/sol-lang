@@ -29,19 +29,14 @@ bool isBlockingCharacter(char c) {
       return true;
   return false;
 }
-
 pair<string, Token::Type> nonblockingCharacters[] = {
-  {"^", Token::Type::returnTokenT},
   {".", Token::Type::sequenceSeparatorT},
   {"@", Token::Type::methodMarkT},
   {"|", Token::Type::lambdaSeparatorT},
 };
 bool isBinaryOperator(char c) {
   return c != EOF and !isWhitespace(c) and !isIdentifier(c) and
-    !isBlockingCharacter(c) and !charCheck(c, "\'\"");
-}
-bool isSymbol(char c) {
-  return isBinaryOperator(c) or isAlphanumeric(c) or c==':';
+    !isBlockingCharacter(c) and c != '\'' and c != '"';
 }
 int charToHex(char a) {
   if('0'<=a and a<='9') return a-'0';
@@ -107,7 +102,6 @@ public:
     if(getIdentifierKeyword()) return;
     if(getComment()) return;
     if(getLineComment()) return;
-    
     
     for(auto p : blockingCharacters) 
       if(getSingleCharacterToken(p.first, p.second))
@@ -266,12 +260,18 @@ public:
     stream->nextCharacter();
     token.type = Token::Type::symbolT;
     token.symbol = "";
-    if(!isSymbol(stream->getCharacter()))
+    if(isIdentifier(stream->getCharacter()))
+      while(isIdentifier(stream->getCharacter()) or stream->getCharacter() == ':') {
+	token.symbol += stream->getCharacter();
+	stream->nextCharacter();
+      }
+    else if(isBinaryOperator(stream->getCharacter()))
+      while(isBinaryOperator(stream->getCharacter())) {
+	token.symbol += stream->getCharacter();
+	stream->nextCharacter();
+      }
+    else
       throw TokenizerException(this, "Expected valid identifier character in symbol.");
-    while(isSymbol(stream->getCharacter())) {
-      token.symbol += stream->getCharacter();
-      stream->nextCharacter();
-    }
     return true;
   }
   bool getSingleCharacterToken(char character, Token::Type type) {
