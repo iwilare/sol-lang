@@ -2,6 +2,7 @@ class Parser;
 class ParserException : public SolException {
 public:
   ParserException(Parser *parser, string message);
+  ParserException(Atom *atom, string message);
   ParserException(Token token, string message);
 };
 class Parser {
@@ -68,19 +69,7 @@ public:
       atom = new Atom(atom, Message(messageParts, messageParts.size()), arguments);
     while(tokenizer->getToken().type == Token::Type::pipeT) {
       tokenizer->nextToken();
-      switch(tokenizer->getToken().type) {
-      case Token::Type::identifierT:
-	atom = parseUnaryMessage(atom);
-	break;
-      case Token::Type::binaryOperatorT:
-	atom = parseBinaryMessage(atom);
-	break;
-      case Token::Type::keywordT:
-	atom = parseKeywordMessage(atom);
-	break;
-      default:
-	throw ParserException(this, "Unexpected token after pipe.");
-      }
+      atom = parseKeywordMessage(parseBinaryMessage(parseUnaryMessage(atom)));
     }
     return atom;
   }
@@ -171,42 +160,31 @@ public:
     case Token::Type::methodMarkT: {
       if(!tokenizer->getToken().isObjectStart())
 	throw ParserException(this, "Expected valid object as method destination.");
-      Atom *receiver = parseObject();
-      string message;
-      vector<string> parameters;
+
       Location lambdaLocation, messageLocation;
       messageLocation = tokenizer->getToken().location;
-      if(tokenizer->getToken().type == Token::Type::identifierT) {
-	message = tokenizer->getToken().identifier;
-	tokenizer->nextToken();
-      } else if(tokenizer->getToken().type == Token::Type::keywordT) {
-	while(tokenizer->getToken().type == Token::Type::keywordT) {
-	  message += tokenizer->getToken().keyword + ":";
-	  tokenizer->nextToken();
-	  if(tokenizer->getToken().type == Token::Type::identifierT)
-	    parameters.push_back(tokenizer->getToken().identifier);
-	  else
-	    throw ParserException(this, "Expected valid argument identifier.");
-	  tokenizer->nextToken();
-	}
-      } else if(tokenizer->getToken().type == Token::Type::binaryOperatorT) {
-	message = tokenizer->getToken().binaryOperator + ":";
-	tokenizer->nextToken();
-	if(tokenizer->getToken().type == Token::Type::identifierT)
-	  parameters.push_back(tokenizer->getToken().identifier);
+      
+      Atom *methodDefinition = parseKeywordMessage();
+      if(methodDefinition->type != Atom::Type::messageT)
+	throw ParserException(methodDefinition, "Expected valid method definition.");
+
+      Atom *receiver = methodDefinition->message.receiver;
+      Message message = methodDefinition->message.message;
+      vector<string> parameters;
+      for(Atom *argument : methodDefinition->message.arguments)
+	if(argument->type == Atom::Type::identifierT)
+	  parameters.push_back(argument->identifier);
 	else
-	  throw ParserException(this, "Expected valid argument identifier.");
-	tokenizer->nextToken();
-      } else
-	throw ParserException(this, "Unexpected token in method definition.");
+	  throw ParserException(argument, "Expected valid parameter identifier.");
+      
       if(tokenizer->getToken().type != Token::Type::methodMarkT)
 	throw ParserException(this, "Expected token mark.");
       tokenizer->nextToken();
-
+      
       Atom *messageSymbol = new Atom(Atom::Type::symbolT);
       messageSymbol->location = messageLocation;
-      messageSymbol->symbol = message;
-
+      messageSymbol->symbol = message.toString();
+      
       if(tokenizer->getToken().type == Token::Type::lambdaStartT) {
 	lambdaLocation = tokenizer->getToken().location;
 	tokenizer->nextToken();
@@ -223,18 +201,16 @@ public:
 	lambda->location = lambdaLocation;
 	lambda->lambda.body = body;
 	lambda->lambda.parameters = parameters; 
-	return new Atom(receiver, Message({"method","set"},2), {messageSymbol, lambda});
+	return new Atom(receiver, Message({"method","set"},2),
+			{messageSymbol, lambda});
       } else if(Token::Type::binaryOperatorT and
 		tokenizer->getToken().binaryOperator == "=") {
 	tokenizer->nextToken();
-	return new Atom(receiver, Message({"method","set"},2), {messageSymbol, parseKeywordMessage()});
+	return new Atom(receiver, Message({"method","set"},2),
+			{messageSymbol, parseKeywordMessage()});
       } else
 	return new Atom(receiver, Message({"method"},1), {messageSymbol});
     }
-    case Token::Type::returnTokenT:
-      atom->type = Atom::Type::returnT;
-      atom->returnExpression = parseAtom();
-      return atom;
     case Token::Type::vectorStartT:
       atom->type = Atom::Type::vectorT;
       atom->vectorElements = {};
@@ -264,5 +240,7 @@ public:
 
 ParserException::ParserException(Parser *parser, string message) :
   SolException("Parser", parser->tokenizer->getToken().location, message) {}
+ParserException::ParserException(Atom *atom, string message) :
+  SolException("Parser", atom->location, message) {}
 ParserException::ParserException(Token token, string message) :
   SolException("Parser", token.location, message) {}

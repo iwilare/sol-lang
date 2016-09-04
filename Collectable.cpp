@@ -1,59 +1,61 @@
-int uniqueDereferenceID = 0;
-int globalObjectCount = 0;
+int GlobalObjectCount = 0;
 class Collectable {
+private:
+  int count;
 public:
-  int references;
-  int passingID;
-  Collectable() : references(0), passingID(0) {
-    globalObjectCount++;
-    //cout<<"NEW Count: "<<globalObjectCount<<" | "<<this<<endl;
+  Collectable() : count(0) {
+    LogGC<<"Creating new object at "<<this<<", total object count: "<<++GlobalObjectCount<<LogEnd;
   }
   virtual ~Collectable() {}
+  void dereference() {
+    if(this == nullptr)
+      return;
+    count--;
+    if(count == 0) {
+      LogGC<<"Deleting new object at "<<this<<", total object count: "<<--GlobalObjectCount<<LogEnd;
+      delete this;
+    }
+  }
   void reference() {
     if(this == nullptr)
       return;
-    //cout<<"@@@> Referencing "<<this<<" to "<<(references+1)<<endl;
-    references++;
+    count++;
   }
-  bool finalize() {
-    if(this == nullptr)
-      return false;
-    //if(disabled)return false;
-    //cout<<"@@@> Finalizing "<<this<<" WITH "<<references<<endl;
-    if(references == 0) {
-      ////cout<<"||||||||-START||||||||||Deleting "<<this<<endl;
-      uniqueDereferenceID++;
-      recursiveDereferenceStep();
-      ////cout<<"||||||||-END||||||||||Deleting "<<this<<endl;
-      globalObjectCount--;
-      //cout<<"DEL Count: "<<globalObjectCount<<" | "<<this<<endl;
-      delete this;
-      return true;
-    } else return false;
+};
+
+template<typename T> class Reference {
+private:
+  T *obj;
+public:
+  Reference() : obj(nullptr) { }
+  Reference(T *obj) : obj(obj) {
+    ((Collectable*)obj)->reference();
   }
-  void dereferenceProtect() { 
-    if(this == nullptr)
-      return;
-    if(references > 0)
-      references--;
+  ~Reference() {
+    ((Collectable*)obj)->dereference();
   }
-  void dereference() {
-    uniqueDereferenceID++;
-    dereferenceStep();
+  Reference(const Reference<T> &that) : obj(that.obj) {
+    ((Collectable*)obj)->reference();
   }
-  void dereferenceStep() {
-    if(this == nullptr)
-      return;
-    ////cout<<"@@@> Dereferencing "<<this<<endl;
-    if(uniqueDereferenceID == passingID) {
-      ////cout<<"ALREADY PASSED"<<endl;
-      return;
-    }
-    if(!finalize()) {
-      references--;
-      passingID = uniqueDereferenceID;
-      finalize();
-    } 
+  Reference(Reference<T> &&that) {
+    obj = that.obj;
+    that.obj = nullptr;
   }
-  virtual void recursiveDereferenceStep() = 0;
+  Reference<T> &operator=(Reference<T> &&that) {
+    swap(obj, that.obj);
+    return *this;
+  }
+  Reference<T> &operator=(const Reference<T> &that) {
+    obj = that.obj;
+    ((Collectable*)obj)->reference();
+    return *this;
+  }
+  
+  T *operator->() { return obj; }
+  T operator*() { return *obj; }
+  bool operator==(T *t) { return obj == t; }
+  bool operator!=(T *t) { return obj != t; }
+  bool operator==(Reference<T> r) { return obj == r.obj; }
+  bool operator!=(Reference<T> r) { return obj != r.obj; }
+  T *get() { return obj; }  
 };

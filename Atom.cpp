@@ -7,7 +7,7 @@ public:
   enum Type { messageT,
 	      identifierT,
 	      assignmentT,
-	      lambdaT, returnT,
+	      lambdaT,
 	      sequenceT,
 	      vectorT,
 	      symbolT, integerT, doubleT, characterT, stringT } type;
@@ -18,7 +18,6 @@ public:
   double doubleValue;
   char characterValue;
   string stringValue;
-  Atom *returnExpression;
   vector<Atom*> sequence;
   vector<Atom*> vectorElements;
   struct {
@@ -47,20 +46,14 @@ public:
   Atom(Atom *receiver, Message messageName, vector<Atom*> arguments) :
     type(Type::messageT), location(receiver->location),
     message({receiver, messageName, arguments}) {}
-  /*struct {
-    Message message;
-    vector<string> parameters;
-    Atom *body;
-    } method;*/
-  //};
   string toString() {
     if(this == nullptr)
       return "<nothing>";
     string s;
     switch(type) {
     case Type::messageT:
-      return "((" + message.receiver->toString() + ") " + message.message.toString() + " [" +
-	atomVectorToString(message.arguments, ", ") + "])";
+      return "<" + message.receiver->toString() + " " + message.message.toString() + " | " +
+	atomVectorToString(message.arguments, " | ") + ">";
     case Type::identifierT:
       return identifier;
     case Type::assignmentT:
@@ -71,8 +64,6 @@ public:
       for(string p : lambda.parameters)
 	s += p + " ";
       return "{ " + s + "| "  + lambda.body->toString() + " }";
-    case Type::returnT:
-      return "(Return " + returnExpression->toString() + ")";
     case Type::sequenceT:
       for(Atom *a : sequence)
 	s += " " + a->toString() + ".";
@@ -82,9 +73,9 @@ public:
     case Type::symbolT:
       return "#" + symbol;
     case Type::integerT:
-      return to_string(integerValue);
+      return intToString(integerValue);
     case Type::doubleT:
-      return to_string(doubleValue);
+      return doubleToString(doubleValue);
     case Type::characterT:
       return "'" + string(1,characterValue) + "'";
     case Type::stringT:

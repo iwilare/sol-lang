@@ -1,7 +1,10 @@
-Flags = -std=c++11 -static -g 
-Compiler = g++ $(Flags)
-WindowsCompiler = x86_64-w64-mingw32-g++ $(Flags)
-Dependencies = Location.cpp \
+Flags = -std=c++11
+LinuxCompiler = g++
+LinuxFlags = -g
+WindowsCompiler = x86_64-w64-mingw32-g++
+WindowsFlags = -static
+Dependencies = Log.cpp \
+	Location.cpp \
 	CharacterStream.cpp \
 	Token.cpp \
 	Tokenizer.cpp \
@@ -14,10 +17,10 @@ Dependencies = Location.cpp \
 	LambdaStructure.cpp \
 	Evaluator.cpp \
 	Runtime.cpp \
-	Semantics.cpp \
+	SolStructure.cpp \
 	Program.cpp \
 	Sol.cpp
 linux : $(Dependencies)
-	$(Compiler) Sol.cpp -o Sol.elf
+	$(LinuxCompiler) $(Flags) $(LinuxFlags) Sol.cpp -o Sol.elf
 windows : $(Dependencies)
-	$(WindowsCompiler) Sol.cpp -o Sol.exe
+	$(WindowsCompiler) $(Flags) $(WindowsFlags) Sol.cpp -o Sol.exe

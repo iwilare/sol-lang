@@ -1,107 +1,78 @@
-class Environment;
 class EnvironmentException : public SolException {
 public:
-  EnvironmentException(Environment *env, string message) :
+  EnvironmentException(Environment env, string message) :
     SolException("Environment", message) {}
-  EnvironmentException(Environment *env, Location location, string message) :
-    SolException("Environment", location, message) {}
+  EnvironmentException(Environment env, Location location, string variable) :
+    SolException("Environment", location, "Undefined variable \"" + variable + "\".") {}
 };
-class Environment : public Collectable {
+class EnvironmentS : public Collectable {
 public:
 private:
-  Environment *outer;
-  map<string, Sol*> env;
-  map<string, Sol**> linkEnv;
-  Sol *actualSelf;
+  Environment outer;
+  map<string, Sol> env;
+  map<string, Sol*> linkEnv;
 public:
-  Environment() : env(), linkEnv(), outer(nullptr), actualSelf(nullptr) {}
-  Environment(Environment *outer) :
-    env(), outer(outer), actualSelf(nullptr) {
-    outer->reference();
+  EnvironmentS() : env(), linkEnv(), outer(nullptr) {}
+  EnvironmentS(Environment outer) :
+    env(), outer(outer) {
   }
-  Environment(Environment *outer, Sol *actualSelf) :
-    env(), outer(outer), actualSelf(actualSelf) {
-    outer->reference();
-    actualSelf->reference();
-  }
-  void linkVariable(string variable, Sol **location) {
-    (*location)->reference();
+  void link(string variable, Sol *location) {
     linkEnv[variable] = location;
   }
-  void defineVariable(string variable, Sol *value) {
-    value->reference();
+  void define(string variable, Sol value) {
     env[variable] = value;
   }
-  void setVariable(string variable, Sol *value) {
-    value->reference();
-    if(actualSelf != nullptr and actualSelf->hasVariable(variable))
-      actualSelf->setVariable(variable, value);
-    else if(linkEnv.count(variable) > 0) {
-      if(linkEnv.count(variable) > 0)
-	(*(linkEnv[variable]))->dereference();
+  void set(string variable, Sol value) {
+    if(linkEnv.count(variable) > 0)
       *(linkEnv[variable]) = value;
-    } else if(outer == nullptr or !outer->hasVariable(variable)) {
-      if(env.count(variable) > 0) 
-	env[variable]->dereference();
+    else if(outer == nullptr or !outer->has(variable))
       env[variable] = value;
-    } else
-      outer->setVariable(variable, value);
+    else
+      outer->set(variable, value);
   }
-  bool hasVariable(string variable) {
-    if(actualSelf != nullptr and actualSelf->hasVariable(variable))
-      return true;
-    else if(env.count(variable) > 0 or linkEnv.count(variable) > 0)
+  bool has(string variable) {
+    if(env.count(variable) > 0 or linkEnv.count(variable) > 0)
       return true;
     else if(outer == nullptr)
       return false;
     else
-      return outer->hasVariable(variable);
+      return outer->has(variable);
   }
-  Sol *getVariable(Atom *a) {
-    return getVariable(a->location, a->identifier);
+  Sol get(Atom *a) {
+    return get(a->location, a->identifier);
   }
-  Sol *getVariable(string s) {
-    return getVariable(Location(), s);
+  Sol get(string s) {
+    return get(Location(), s);
   }
-  Sol *getVariable(Location location, string s) {
-    if(actualSelf != nullptr and actualSelf->hasVariable(s))
-      return actualSelf->getVariable(s);
-    else if(env.count(s) > 0)
-      return env[s];
-    else if(linkEnv.count(s) > 0)
-      return *(linkEnv[s]);
+  Sol get(Location location, string variable) {
+    if(env.count(variable) > 0)
+      return env[variable];
+    else if(linkEnv.count(variable) > 0)
+      return *(linkEnv[variable]);
     else if(outer == nullptr)
-      throw EnvironmentException(this, location, "Undefined variable \"" + s + "\".");
+      throw EnvironmentException(Environment(this), location, variable);
     else
-      return outer->getVariable(s);
+      return outer->get(variable);
   }
-  Sol *getSelf() {
-    if(actualSelf != nullptr)
-      return actualSelf;
-    else if(outer == nullptr)
+  Sol getSelf() {
+    if(outer == nullptr)
       return nullptr;
     else
       return outer->getSelf();
   }
   string toString() {
-    string s = "{";
-    if(actualSelf != nullptr)
-      s += "self";
+    string s;
     if(outer != nullptr)
-      s += outer->toString();
-    s += "|";
-    for(pair<string, Sol*> p : env)
+      s += outer->toString() + "+";
+    s += "{";
+    for(pair<string, Sol> p : env)
       s += " " + p.first;
-    return s + "}";
-  }
-  void recursiveDereferenceStep() {
-    if(actualSelf != nullptr)
-      actualSelf->dereferenceStep();
-    for(auto p : env)
-      p.second->dereferenceStep();
-    for(auto p : linkEnv)
-      (*p.second)->dereferenceStep();
-    if(outer != nullptr)
-      outer->dereferenceStep();
+    return s + " }";
   }
 };
+Environment EnvironmentCreate() {
+  return Environment(new EnvironmentS());
+}
+Environment EnvironmentCreate(Environment outer) {
+  return Environment(new EnvironmentS(outer));
+}
