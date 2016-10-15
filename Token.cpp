@@ -1,12 +1,12 @@
 class Token {
 public:
-  enum Type { integerT, doubleT, stringT, characterT,
-	      symbolT, identifierT, keywordT, binaryOperatorT,
-	      sequenceSeparatorT, pipeT, methodMarkT,
-	      vectorStartT, vectorEndT, vectorSeparatorT,
-	      lambdaStartT, lambdaSeparatorT, lambdaEndT,
-	      parenthesisOpenT, parenthesisCloseT,
-	      eofT
+  enum Type : unsigned char { Integer, Double, String, Character,
+	      Symbol, Identifier, Keyword, BinaryOperator,
+	      SequenceSeparator, Pipe, MethodMark,
+	      VectorStart, VectorEnd, VectorSeparator,
+	      LambdaStart, LambdaSeparator, LambdaEnd,
+	      ParenthesisOpen, ParenthesisClose,
+	      Eof
   } type;
   Location location;
   //union {
@@ -24,59 +24,59 @@ public:
   //};
   bool isObjectStart() {
     return
-      (type == Type::binaryOperatorT and binaryOperator == "-") or
-      type == Type::identifierT or
-      type == Type::integerT or
-      type == Type::doubleT or
-      type == Type::stringT or
-      type == Type::characterT or
-      type == Type::symbolT or
-      type == Type::lambdaStartT or
-      type == Type::methodMarkT or
-      type == Type::vectorStartT or
-      type == Type::parenthesisOpenT;
+      (type == Type::BinaryOperator and binaryOperator == "-") or
+      type == Type::Identifier or
+      type == Type::Integer or
+      type == Type::Double or
+      type == Type::String or
+      type == Type::Character or
+      type == Type::Symbol or
+      type == Type::LambdaStart or
+      type == Type::MethodMark or
+      type == Type::VectorStart or
+      type == Type::ParenthesisOpen;
   }
   string toString() {
     switch(type) {
-    case Type::identifierT:
+    case Type::Identifier:
       return "Identifier " + identifier;
-    case Type::integerT:
+    case Type::Integer:
       return "Integer " + intToString(integerValue);
-    case Type::doubleT:
+    case Type::Double:
       return "Double " + doubleToString(doubleValue);
-    case Type::stringT:
+    case Type::String:
       return "String \"" + stringValue + "\"";
-    case Type::characterT:
+    case Type::Character:
       return "Character '" + std::string(1,characterValue) + "'";
-    case Type::symbolT:
+    case Type::Symbol:
       return "Symbol #" + symbol;
-    case Type::keywordT:
+    case Type::Keyword:
       return "Keyword " + keyword;
-    case Type::binaryOperatorT:
+    case Type::BinaryOperator:
       return "BinaryOperator " + binaryOperator;
-    case Type::sequenceSeparatorT:
+    case Type::SequenceSeparator:
       return ".";
-    case Type::pipeT:
+    case Type::Pipe:
       return ";";
-    case Type::methodMarkT:
+    case Type::MethodMark:
       return "@";
-    case Type::vectorStartT:
+    case Type::VectorStart:
       return "[";
-    case Type::vectorSeparatorT:
+    case Type::VectorSeparator:
       return ",";      
-    case Type::vectorEndT:
+    case Type::VectorEnd:
       return "]";
-    case Type::lambdaStartT:
+    case Type::LambdaStart:
       return "{";
-    case Type::lambdaSeparatorT:
+    case Type::LambdaSeparator:
       return "|";
-    case Type::lambdaEndT:
+    case Type::LambdaEnd:
       return "}";
-    case Type::parenthesisOpenT:
+    case Type::ParenthesisOpen:
       return "(";
-    case Type::parenthesisCloseT:
+    case Type::ParenthesisClose:
       return ")";
-    case Type::eofT:
+    case Type::Eof:
       return "<EOF>";
     default:
       return "<unrecognized token>";

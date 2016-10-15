@@ -14,14 +14,14 @@ bool isIdentifier(char c) { return isAlphanumeric(c); }
 bool isParenthesis(char c) { return charCheck(c, "()[]{}"); }
 
 pair<char, Token::Type> blockingCharacters[] = {
-  {'[', Token::Type::vectorStartT},
-  {']', Token::Type::vectorEndT},
-  {'{', Token::Type::lambdaStartT},
-  {'}', Token::Type::lambdaEndT},
-  {'(', Token::Type::parenthesisOpenT},
-  {')', Token::Type::parenthesisCloseT},
-  {',', Token::Type::vectorSeparatorT},
-  {';', Token::Type::pipeT},
+  {'[', Token::Type::VectorStart},
+  {']', Token::Type::VectorEnd},
+  {'{', Token::Type::LambdaStart},
+  {'}', Token::Type::LambdaEnd},
+  {'(', Token::Type::ParenthesisOpen},
+  {')', Token::Type::ParenthesisClose},
+  {',', Token::Type::VectorSeparator},
+  {';', Token::Type::Pipe},
 };
 bool isBlockingCharacter(char c) {
   for(auto p : blockingCharacters)
@@ -30,9 +30,9 @@ bool isBlockingCharacter(char c) {
   return false;
 }
 pair<string, Token::Type> nonblockingCharacters[] = {
-  {".", Token::Type::sequenceSeparatorT},
-  {"@", Token::Type::methodMarkT},
-  {"|", Token::Type::lambdaSeparatorT},
+  {".", Token::Type::SequenceSeparator},
+  {"@", Token::Type::MethodMark},
+  {"|", Token::Type::LambdaSeparator},
 };
 bool isBinaryOperator(char c) {
   return c != EOF and !isWhitespace(c) and !isIdentifier(c) and
@@ -78,7 +78,7 @@ public:
   Token token;
   Tokenizer(CharacterStream *stream) : stream(stream) { nextToken(); }
   void close() { stream->close(); }
-  bool hasTokens() { return token.type != Token::Type::eofT; }
+  bool hasTokens() { return token.type != Token::Type::Eof; }
   TokenizerState *saveState() { return new TokenizerState(stream->saveState(), token); }
   void restoreState(TokenizerState *state) {
     stream->restoreState(state->streamState);
@@ -91,7 +91,7 @@ public:
     
     token.location = stream->currentLocation();
     if(stream->isEOF()) {
-      token.type = Token::Type::eofT;
+      token.type = Token::Type::Eof;
       return;
     }
     
@@ -174,11 +174,11 @@ public:
       stream->nextCharacter();
       if(!isNumeric(stream->getCharacter())) {
 	stream->restoreState(state);
-	token.type = Token::Type::integerT;
+	token.type = Token::Type::Integer;
 	token.integerValue = integerPart;
 	return true;
       }
-      token.type = Token::Type::doubleT;
+      token.type = Token::Type::Double;
       token.doubleValue = integerPart;
       double doublePart = 0.0;
       int exp = -1;
@@ -188,7 +188,7 @@ public:
 	stream->nextCharacter();
       }
     } else {
-      token.type = Token::Type::integerT;
+      token.type = Token::Type::Integer;
       token.integerValue = integerPart;
     }
     return true;
@@ -196,7 +196,7 @@ public:
   bool getString() {
     if(stream->getCharacter() != '"')
       return false;
-    token.type = Token::Type::stringT;
+    token.type = Token::Type::String;
     token.stringValue = "";
     while(stream->getCharacter() == '"') {
       stream->nextCharacter();
@@ -239,7 +239,7 @@ public:
     if(stream->getCharacter() != '\'')
       return false;
     stream->nextCharacter();
-    token.type = Token::Type::characterT;
+    token.type = Token::Type::Character;
     if(stream->getCharacter() == '\n')
       throw TokenizerException(this, "Expected character but got newline.");
     else if(stream->getCharacter() == EOF)
@@ -258,7 +258,7 @@ public:
     if(stream->getCharacter() != '#')
       return false;
     stream->nextCharacter();
-    token.type = Token::Type::symbolT;
+    token.type = Token::Type::Symbol;
     token.symbol = "";
     if(isIdentifier(stream->getCharacter()))
       while(isIdentifier(stream->getCharacter()) or stream->getCharacter() == ':') {
@@ -291,11 +291,11 @@ public:
     }
     if(stream->getCharacter() == ':') {
       stream->nextCharacter();
-      token.type = Token::Type::keywordT;
+      token.type = Token::Type::Keyword;
       token.keyword = symbol;
     }
     else {
-      token.type = Token::Type::identifierT;
+      token.type = Token::Type::Identifier;
       token.identifier = symbol;
     }
     return true;
@@ -303,7 +303,7 @@ public:
   bool getBinaryOperator() {
     if(!isBinaryOperator(stream->getCharacter()))
       return false;
-    token.type = Token::Type::binaryOperatorT;
+    token.type = Token::Type::BinaryOperator;
     token.binaryOperator = "";
     while(isBinaryOperator(stream->getCharacter())) {
       token.binaryOperator += stream->getCharacter();

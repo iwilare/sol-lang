@@ -46,9 +46,9 @@ string UTILITY_getObjectTypeName(Sol object) {
     return UTILITY_getClassName(object->getClass());
 }
 
-RuntimeTypeException::RuntimeTypeException(string message) :
+RuntimeTypeException::RuntimeypeException(string message) :
   RuntimeException("RuntimeType", message) {}
-RuntimeTypeException::RuntimeTypeException(Sol object, Sol klass) :
+RuntimeTypeException::RuntimeypeException(Sol object, Sol klass) :
   RuntimeException("RuntimeType", "Unexpected type " + UTILITY_getObjectTypeName(object) +
 		   ", expected " + UTILITY_getClassName(klass) + ".") {}  
 

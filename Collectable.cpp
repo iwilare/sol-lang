@@ -3,18 +3,14 @@ class Collectable {
 private:
   int count;
 public:
-  Collectable() : count(0) {
-    LogGC<<"Creating new object at "<<this<<", total object count: "<<++GlobalObjectCount<<LogEnd;
-  }
+  Collectable() : count(0) { }
   virtual ~Collectable() {}
   void dereference() {
     if(this == nullptr)
       return;
     count--;
-    if(count == 0) {
-      LogGC<<"Deleting new object at "<<this<<", total object count: "<<--GlobalObjectCount<<LogEnd;
+    if(count == 0)
       delete this;
-    }
   }
   void reference() {
     if(this == nullptr)
@@ -49,8 +45,7 @@ public:
     obj = that.obj;
     ((Collectable*)obj)->reference();
     return *this;
-  }
-  
+  }  
   T *operator->() { return obj; }
   T operator*() { return *obj; }
   bool operator==(T *t) { return obj == t; }

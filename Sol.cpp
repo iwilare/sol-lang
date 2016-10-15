@@ -11,15 +11,9 @@
 
 using namespace std;
 
-#define Version "1"
-#define Log
+#define VERSION "0"
 
-string intToString(int a) {
-  stringstream ss; ss<<a; return ss.str();
-}
-string doubleToString(double a) {
-  stringstream ss; ss<<a; return ss.str();
-}
+typedef unsigned char byte;
 
 #include "Location.cpp"
 
@@ -31,7 +25,6 @@ public:
     runtime_error(source + "@" + location.toString() + ": " + message) {}
 };
 
-#include "Log.cpp"
 #include "CharacterStream.cpp"
 #include "Token.cpp"
 #include "Tokenizer.cpp"
@@ -39,12 +32,11 @@ public:
 #include "Atom.cpp"
 #include "Parser.cpp"
 
-#include "Collectable.cpp"
+#include "Instruction.cpp"
+#include "Bytecode.cpp"
+#include "Compiler.cpp"
 
-class SolS;
-typedef Reference<SolS> Sol;
-class EnvironmentS;
-typedef Reference<EnvironmentS> Environment;
+#include "Collectable.cpp"
 
 class SolS : public Collectable {
 private:
@@ -88,42 +80,12 @@ Sol SolCreate(Sol klass) { return Reference<SolS>(new SolS(klass)); }
 Sol SolCreate(Sol klass, void *data) { return Reference<SolS>(new SolS(klass, data)); }
 
 #include "Environment.cpp"
-
-Sol eval(Atom *a, Sol self, Sol contextClass, int LLID, Environment environment);
-class EvaluationRequest {
-public:
-  Atom *atom;
-  Sol self;
-  Sol contextClass;
-  Environment environment;
-
-  Sol value;
-  EvaluationRequest(Atom *atom, Sol self, Sol contextClass, Environment environment) :
-    atom(atom), self(self), contextClass(contextClass), environment(environment) {}
-  string toString() {
-    return atom->toString();
-  }
-};
-
-typedef Sol (*StandardSolFunction)(Sol self, vector<Sol> arguments);
-
 #include "Classes.cpp"
+
 #include "RuntimeExceptions.cpp"
-#include "LambdaStructure.cpp"
-#include "Evaluator.cpp"
-#include "Runtime.cpp"
 #include "SolStructure.cpp"
+#include "Address.cpp"
+#include "VirtualMachine.cpp"
+#include "Runtime.cpp"
+
 #include "Program.cpp"
-
-// TODO
-
-/*
-Integer miao @ = nothing
-3 miao
-*/
-
-/*
-:e FloydWarshall.sol
-A = Matrice newSize: 10 with: Infinito.
-A reduce.
-*/

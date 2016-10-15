@@ -4,13 +4,13 @@ string atomVectorToString(vector<Atom*> v, string mid);
 class Atom {
 public:
   Location location;
-  enum Type { messageT,
-	      identifierT,
-	      assignmentT,
-	      lambdaT,
-	      sequenceT,
-	      vectorT,
-	      symbolT, integerT, doubleT, characterT, stringT } type;
+  enum Type : unsigned char { MessageT,
+	      Identifier,
+	      Assignment,
+	      Lambda,
+	      Sequence,
+	      Vector,
+	      Symbol, Integer, Double, Character, String } type;
   //union {
   string identifier;
   string symbol;
@@ -36,49 +36,49 @@ public:
   Atom(Type type) : type(type) {}
   Atom(Location location) : location(location) {}
   Atom(string identifier) :
-    type(Type::identifierT), identifier(identifier) {}
+    type(Type::Identifier), identifier(identifier) {}
   Atom(Atom *variable, Atom *value) :
-    type(Type::assignmentT), location(variable->location),
+    type(Type::Assignment), location(variable->location),
     assignment({variable->identifier, value}) {}
   Atom(vector<Atom*> sequence) :
-    type(Type::sequenceT), location(sequence[0]->location),
+    type(Type::Sequence), location(sequence[0]->location),
     sequence(sequence) {}
   Atom(Atom *receiver, Message messageName, vector<Atom*> arguments) :
-    type(Type::messageT), location(receiver->location),
+    type(Type::MessageT), location(receiver->location),
     message({receiver, messageName, arguments}) {}
   string toString() {
     if(this == nullptr)
       return "<nothing>";
     string s;
     switch(type) {
-    case Type::messageT:
+    case Type::MessageT:
       return "<" + message.receiver->toString() + " " + message.message.toString() + " | " +
 	atomVectorToString(message.arguments, " | ") + ">";
-    case Type::identifierT:
+    case Type::Identifier:
       return identifier;
-    case Type::assignmentT:
+    case Type::Assignment:
       return assignment.variable + " := " + assignment.value->toString();
-    case Type::lambdaT:
+    case Type::Lambda:
       if(lambda.parameters.size() == 0)
 	return "{ " + lambda.body->toString() + " }";
       for(string p : lambda.parameters)
 	s += p + " ";
       return "{ " + s + "| "  + lambda.body->toString() + " }";
-    case Type::sequenceT:
+    case Type::Sequence:
       for(Atom *a : sequence)
 	s += " " + a->toString() + ".";
       return "(Sequence" + s + ")";
-    case Type::vectorT:
+    case Type::Vector:
       return "[" + atomVectorToString(vectorElements, ", ") + "]";     
-    case Type::symbolT:
+    case Type::Symbol:
       return "#" + symbol;
-    case Type::integerT:
+    case Type::Integer:
       return intToString(integerValue);
-    case Type::doubleT:
+    case Type::Double:
       return doubleToString(doubleValue);
-    case Type::characterT:
+    case Type::Character:
       return "'" + string(1,characterValue) + "'";
-    case Type::stringT:
+    case Type::String:
       return "\"" + stringValue + "\"";
     default:
       return "<unrecognized atom>";

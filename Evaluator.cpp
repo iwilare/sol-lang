@@ -9,11 +9,11 @@ Sol eval(Atom *a, Sol self, Sol contextClass, Environment environment) {
   }
   Sol returnValue;
   switch(a->type) {
-  case Atom::Type::messageT: {
+  case Atom::Type::message: {
     GlobalEvaluationStackCount++;
     Sol receiver, klass;
     vector<Sol> arguments;
-    if(a->message.receiver->type == Atom::Type::identifierT and
+    if(a->message.receiver->type == Atom::Type::identifier and
        a->message.receiver->identifier == "super") {
       if(contextClass == nullptr)
 	throw RuntimeException(/*a, */"Cannot refer to super while not in a valid context.");
@@ -40,7 +40,7 @@ Sol eval(Atom *a, Sol self, Sol contextClass, Environment environment) {
       goto tailRecursionStart;
     }
   }
-  case Atom::Type::identifierT:
+  case Atom::Type::identifier:
     if(a->identifier == "self")
       if(self == nullptr)
 	throw RuntimeException(/*a, */"Cannot refer to self while not in a valid context.");
@@ -56,7 +56,7 @@ Sol eval(Atom *a, Sol self, Sol contextClass, Environment environment) {
       return self->getVariable(a->identifier);
     else
       throw EnvironmentException(environment, a->location, a->identifier);
-  case Atom::Type::assignmentT: {
+  case Atom::Type::assignment: {
     GlobalEvaluationStackCount++;
     Sol value = eval(a->assignment.value, self, contextClass, environment);
     GlobalEvaluationStackCount--;
@@ -69,7 +69,7 @@ Sol eval(Atom *a, Sol self, Sol contextClass, Environment environment) {
       environment->define(variable, value);
     return self;
   }
-  case Atom::Type::sequenceT: {
+  case Atom::Type::sequence: {
     int i;
     GlobalEvaluationStackCount++;
     for(i=0; i<a->sequence.size()-1; i++)
@@ -78,13 +78,13 @@ Sol eval(Atom *a, Sol self, Sol contextClass, Environment environment) {
     a = a->sequence[i];
     goto tailRecursionStart;
   }
-  case Atom::Type::lambdaT: {
+  case Atom::Type::lambda: {
     return SolCreate(Lambda, new LambdaStructure(a->lambda.body,
 						 a->lambda.parameters,
 						 self,
 						 environment));
   }
-  case Atom::Type::vectorT: {
+  case Atom::Type::vector: {
     vector<Sol> elements;
     GlobalEvaluationStackCount++;
     for(Atom *element : a->vectorElements) {
@@ -94,15 +94,15 @@ Sol eval(Atom *a, Sol self, Sol contextClass, Environment environment) {
     GlobalEvaluationStackCount--;
     return SolCreate(Vector, new vector<Sol>(elements));
   }
-  case Atom::Type::symbolT:
+  case Atom::Type::symbol:
     return SolCreate(Symbol, new string(a->symbol)); 
-  case Atom::Type::integerT:
+  case Atom::Type::integer:
     return SolCreate(Integer, new int(a->integerValue)); 
-  case Atom::Type::doubleT:
+  case Atom::Type::double:
     return SolCreate(Double, new double(a->doubleValue)); 
-  case Atom::Type::characterT:
+  case Atom::Type::character:
     return SolCreate(Character, new char(a->characterValue)); 
-  case Atom::Type::stringT:
+  case Atom::Type::string:
     return SolCreate(String, new string(a->stringValue)); 
   default:
     cerr<<"Fatal error, unrecognized Atom."<<endl;
