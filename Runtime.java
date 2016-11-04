@@ -1,7 +1,19 @@
+import java.io.*;
+import java.nio.*;
+import java.net.*;
 import java.util.*;
+import java.util.regex.*;
 
 public class Runtime {
     public static void initialize() {
+	Classes.ObjectMethods.put(Message.utilityParse("printeronos"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    System.out.println("-------- " + self + " | " + Sol.getClass(self) + " -------");
+		    for(Map.Entry<String,Sol> variable : self.getVariables().entrySet())
+			System.out.println(variable.getKey() + " --> " + variable.getValue());
+		    System.out.println("--------------------------------------");
+		    return null;
+		}});
 	Classes.ObjectMethods.put(Message.utilityParse("send:"), new SolFunction() {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
 		    Message message = (Message)arguments[0].getData(Classes.Message);
@@ -26,7 +38,6 @@ public class Runtime {
 		    Message message = (Message)arguments[0].getData(Classes.Message);
 		    return Sol.send(self, message, arguments[1]);
 		}});
-
 	Classes.ObjectMethods.put(Message.utilityParse("superSend:"), new SolFunction() {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
 		    Message message = (Message)arguments[0].getData(Classes.Message);
@@ -45,7 +56,7 @@ public class Runtime {
 		}});
 	Classes.ObjectMethods.put(Message.utilityParse("class"), new SolFunction() {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
-		    return self.getClazz();
+		    return Sol.getClass(self);
 		}});
 	Classes.ObjectMethods.put(Message.utilityParse("class:"), new SolFunction() {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
@@ -113,6 +124,36 @@ public class Runtime {
 			"could not understand the message " + message.toString() + ".";
 		    throw new RuntimeException(exceptionMessage);
 		}});
+	Classes.ObjectMethods.put(Message.utilityParse("understands:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    Message message = (Message)arguments[0].getData(Classes.Message);
+		    for(Sol clazz = Sol.getClass(self); clazz != null;
+			clazz = clazz.getVariable("superclass")) {
+			Sol methodsObject = clazz.getVariable("methods");
+			if(methodsObject == null)
+			    continue;
+			HashMap<Message,Sol> methodMap =
+			    (HashMap<Message,Sol>)methodsObject.getData(Classes.MessageDictionary);
+			if(methodMap.containsKey(message))
+			    return Classes.True.get();			
+		    }
+		    return Classes.False.get();
+		}});
+	Classes.ObjectMethods.put(Message.utilityParse("implementingClassOf:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    Message message = (Message)arguments[0].getData(Classes.Message);
+		    for(Sol clazz = Sol.getClass(self); clazz != null;
+			clazz = clazz.getVariable("superclass")) {
+			Sol methodsObject = clazz.getVariable("methods");
+			if(methodsObject == null)
+			    continue;
+			HashMap<Message,Sol> methodMap =
+			    (HashMap<Message,Sol>)methodsObject.getData(Classes.MessageDictionary);
+			if(methodMap.containsKey(message))
+			    return clazz;
+		    }
+		    return null;
+		}});
 	//----------------------------------------------------------------------
 	Classes.NothingMethods.put(Message.utilityParse("send:"),
 				  Classes.ObjectMethods.get(Message.utilityParse("send:")));
@@ -143,6 +184,11 @@ public class Runtime {
 			"could not understand the message " + message.toString() + ".";
 		    throw new RuntimeException(exceptionMessage);
 		}});
+	Classes.NothingMethods.put(Message.utilityParse("understands:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    Message message = (Message)arguments[0].getData(Classes.Message);
+		    return Classes.NothingMethods.containsKey(message) ? Classes.True.get() : Classes.False.get();
+		}});
 	Classes.NothingMethods.put(Message.utilityParse("=="), new SolFunction() {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
 		    return arguments[0] == null ? Classes.True.get() : Classes.False.get();
@@ -151,50 +197,43 @@ public class Runtime {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
 		    return arguments[0] != null ? Classes.True.get() : Classes.False.get();
 		}});	
+	Classes.NothingMethods.put(Message.utilityParse("toString"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    return new Sol(Classes.String, "nothing");
+		}});	
+	//----------------------------------------------------------------------
+	Classes.MetaclassClassMethods.put(Message.utilityParse("new:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    Sol metaclass = Sol.send(self, "new");
+		    metaclass.setVariable("uniqueInstance", arguments[0]);
+		    return metaclass;
+		}});		
+	//----------------------------------------
+	Classes.MetaclassMethods.put(Message.utilityParse("initialize"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    self.setVariable("uniqueInstance", null);
+		    return self;
+		}});
+	Classes.MetaclassMethods.put(Message.utilityParse("toString"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    Sol uniqueInstance = self.getVariable("uniqueInstance");
+		    String uniqueInstanceString =
+			Sol.send(uniqueInstance, new String[]{"implementingClassOf"},
+				 new Sol[]{new Sol(Classes.Message, new UnaryMessage("toString"))})
+			== Classes.Object.get() ? "<Anonymous object>" :
+			(String)Sol.send(uniqueInstance, "toString").getData(Classes.String);
+		    return new Sol(Classes.String, uniqueInstanceString + " class");
+		}});
 	//----------------------------------------------------------------------
 	Classes.ClassMethods.put(Message.utilityParse("initialize"), new SolFunction() {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
-		    self.setVariable("superclass", Classes.Object.get());
-		    self.setVariable("methods", new Sol(Classes.MessageDictionary, new HashMap<Message,Sol>()));
-		    self.setVariable("instanceVariables", new Sol(Classes.Vector, new ArrayList<Sol>()));
+		    Sol metaclass = Sol.send(Classes.Metaclass.get(), new String[]{"new"}, new Sol[]{self});
+		    self.setClass(metaclass);
+		    metaclass.setVariable("superclass", Sol.getClass(self.getVariable("superclass")));
 		    self.setVariable("name", new Sol(Classes.String, "<Anonymous class>"));
 		    return self;
 		}});
-	Classes.ClassMethods.put(Message.utilityParse("method:"), new SolFunction() {
-		public Sol call(Sol self, Sol[] arguments) throws Exception {
-		    return Sol.send(self.getVariable("methods"),
-				    new String[]{"at"}, new Sol[]{arguments[0]}); 
-		}});
-	Classes.ClassMethods.put(Message.utilityParse("method:set:"), new SolFunction() {
-		public Sol call(Sol self, Sol[] arguments) throws Exception {
-		    Sol.send(self.getVariable("methods"),
-			     new String[]{"at","set"}, new Sol[]{arguments[0], arguments[1]});
-		    return self;
-		}});
-	Classes.ClassMethods.put(Message.utilityParse("defineAccessors"), new SolFunction() {
-		public Sol call(Sol self, Sol[] arguments) throws Exception {
-		    Sol instanceVariablesObject = self.getVariable("instanceVariables");
-		    Sol methodsObject = self.getVariable("methods");
-		    ArrayList<Sol> instanceVariables = (ArrayList<Sol>)instanceVariablesObject.getData(Classes.Vector);
-		    HashMap<Message,Sol> methodDictionary = (HashMap<Message,Sol>)methodsObject.getData(Classes.MessageDictionary);
-		    String[] constructorKeywords = new String[instanceVariables.size()];
-		    for(int i=0; i<instanceVariables.size(); i++) {
-			Message message = (Message)instanceVariables.get(i).getData(Classes.Message);
-			if(!(message instanceof UnaryMessage))
-			    throw new RuntimeException("Expected valid unary message in class instanceVariables");
-			UnaryMessage variable = (UnaryMessage)message;
-			methodDictionary.put(variable,
-					     Sol.send(instanceVariables.get(i), "asGetMethod"));
-			methodDictionary.put(variable.toKeywordMessage(),
-					     Sol.send(instanceVariables.get(i), "asSetMethod"));
-			constructorKeywords[i] = variable.getUnaryMessage();
-		    }
-		    Message constructorMessage = new KeywordMessage(constructorKeywords);
-		    methodDictionary.put(constructorMessage,
-					 Sol.send(new Sol(Classes.Message, constructorMessage), "asSetMethod"));
-		    return self;
-		}});
-	Classes.ClassMethods.put(Message.utilityParse("basicNew"), new SolFunction() {
+	Classes.DescriptionMethods.put(Message.utilityParse("basicNew"), new SolFunction() {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
 		    return new Sol(self);
 		}});
@@ -205,21 +244,72 @@ public class Runtime {
 		    for(Sol clazz = self; clazz != null; clazz = clazz.getVariable("superclass"))
 			classes.addFirst(clazz);
 		    for(Sol clazz : classes) {
-			ArrayList<Sol> instanceVariables =
-			    (ArrayList<Sol>)clazz.getVariable("instanceVariables").getData(Classes.Vector);
-			for(Sol instanceVariable : instanceVariables) {
-			    Message message = (Message)instanceVariable.getData(Classes.Message);
+			ArrayList<Sol> variables =
+			    (ArrayList<Sol>)clazz.getVariable("variables").getData(Classes.Vector);
+			for(Sol variable : variables) {
+			    Message message = (Message)variable.getData(Classes.Message);
 			    if(message instanceof UnaryMessage) {
-				String variable = ((UnaryMessage)message).getUnaryMessage();
-				object.defineVariable(variable);
+				String variableName = ((UnaryMessage)message).getUnaryMessage();
+				object.defineVariable(variableName);
 			    } else
-				throw new RuntimeException("Expected valid instanceVariable symbol.");
+				throw new RuntimeException("Expected valid variable symbol.");
 			}
 			Sol.send(object, new UnaryMessage("initialize"), clazz);
 		    }
 		    return object;
 		}});
 	Classes.ClassMethods.put(Message.utilityParse("toString"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    return self.getVariable("name");
+		}});
+	//----------------------------------------------------------------------
+	Classes.DescriptionMethods.put(Message.utilityParse("initialize"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    self.setVariable("superclass", Classes.Object.get());
+		    self.setVariable("methods", new Sol(Classes.MessageDictionary, new HashMap<Message,Sol>()));
+		    self.setVariable("variables", new Sol(Classes.Vector, new ArrayList<Sol>()));
+		    return self;
+		}});
+	Classes.DescriptionMethods.put(Message.utilityParse("method:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    return Sol.send(self.getVariable("methods"),
+				    new String[]{"at"}, new Sol[]{arguments[0]}); 
+		}});
+	Classes.DescriptionMethods.put(Message.utilityParse("method:set:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    Sol.send(self.getVariable("methods"),
+			     new String[]{"at","set"}, new Sol[]{arguments[0], arguments[1]});
+		    return self;
+		}});
+	Classes.DescriptionMethods.put(Message.utilityParse("defineAccessors"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    return Sol.send(self, new String[]{"defineAccessorsFor"},
+				    new Sol[]{self.getVariable("variables")});
+		}});
+	Classes.DescriptionMethods.put(Message.utilityParse("defineAccessorsFor:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    Sol variablesObject = arguments[0];
+		    Sol methodsObject = self.getVariable("methods");
+		    ArrayList<Sol> variables = (ArrayList<Sol>)variablesObject.getData(Classes.Vector);
+		    HashMap<Message,Sol> methodDictionary = (HashMap<Message,Sol>)methodsObject.getData(Classes.MessageDictionary);
+		    String[] constructorKeywords = new String[variables.size()];
+		    for(int i=0; i<variables.size(); i++) {
+			Message message = (Message)variables.get(i).getData(Classes.Message);
+			if(!(message instanceof UnaryMessage))
+			    throw new RuntimeException("Expected valid unary message in class variables");
+			UnaryMessage variable = (UnaryMessage)message;
+			methodDictionary.put(variable,
+					     Sol.send(variables.get(i), "asGetMethod"));
+			methodDictionary.put(variable.toKeywordMessage(),
+					     Sol.send(variables.get(i), "asSetMethod"));
+			constructorKeywords[i] = variable.getUnaryMessage();
+		    }
+		    Message constructorMessage = new KeywordMessage(constructorKeywords);
+		    methodDictionary.put(constructorMessage,
+					 Sol.send(new Sol(Classes.Message, constructorMessage), "asSetMethod"));
+		    return self;
+		}});
+	Classes.DescriptionMethods.put(Message.utilityParse("toString"), new SolFunction() {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
 		    return self.getVariable("name");
 		}});
@@ -432,9 +522,23 @@ public class Runtime {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
 		    return new Sol(Classes.Double, (double)(int)self.getData());
 		}});
+	Classes.IntegerMethods.put(Message.utilityParse("toCharacter"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    return new Sol(Classes.Character, (char)(int)self.getData());
+		}});
+	Classes.IntegerMethods.put(Message.utilityParse("toByte"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    return new Sol(Classes.Byte, (byte)(int)self.getData());
+		}});
+	Classes.IntegerMethods.put(Message.utilityParse("serialize"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    return new Sol(Classes.Bytes, ByteBuffer.allocate(4).putInt((int)self.getData()).array());
+		}});
 	Classes.IntegerMethods.put(Message.utilityParse("+"), new SolFunction() {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
 		    int a = (int)self.getData();
+		    if(arguments[0].typecheck(Classes.Double))
+			return new Sol(Classes.Double, a + (double)arguments[0].getData());
 		    if(!arguments[0].typecheck(Classes.Integer))
 			arguments[0] = Sol.send(arguments[0], "toInteger");
 		    return new Sol(Classes.Integer, a + (int)arguments[0].getData(Classes.Integer));
@@ -442,6 +546,8 @@ public class Runtime {
 	Classes.IntegerMethods.put(Message.utilityParse("-"), new SolFunction() {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
 		    int a = (int)self.getData();
+		    if(arguments[0].typecheck(Classes.Double))
+			return new Sol(Classes.Double, a - (double)arguments[0].getData());
 		    if(!arguments[0].typecheck(Classes.Integer))
 			arguments[0] = Sol.send(arguments[0], "toInteger");
 		    return new Sol(Classes.Integer, a - (int)arguments[0].getData(Classes.Integer));
@@ -449,6 +555,8 @@ public class Runtime {
 	Classes.IntegerMethods.put(Message.utilityParse("*"), new SolFunction() {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
 		    int a = (int)self.getData();
+		    if(arguments[0].typecheck(Classes.Double))
+			return new Sol(Classes.Double, a * (double)arguments[0].getData());
 		    if(!arguments[0].typecheck(Classes.Integer))
 			arguments[0] = Sol.send(arguments[0], "toInteger");
 		    return new Sol(Classes.Integer, a * (int)arguments[0].getData(Classes.Integer));
@@ -456,6 +564,8 @@ public class Runtime {
 	Classes.IntegerMethods.put(Message.utilityParse("/"), new SolFunction() {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
 		    int a = (int)self.getData();
+		    if(arguments[0].typecheck(Classes.Double))
+			return new Sol(Classes.Double, a / (double)arguments[0].getData());
 		    if(!arguments[0].typecheck(Classes.Integer))
 			arguments[0] = Sol.send(arguments[0], "toInteger");
 		    return new Sol(Classes.Integer, a / (int)arguments[0].getData(Classes.Integer));
@@ -463,6 +573,9 @@ public class Runtime {
 	Classes.IntegerMethods.put(Message.utilityParse("=="), new SolFunction() {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
 		    int a = (int)self.getData();
+		    if(arguments[0].typecheck(Classes.Double))
+			return a == (double)arguments[0].getData() ?
+			    Classes.True.get() : Classes.False.get();
 		    if(!arguments[0].typecheck(Classes.Integer))
 			arguments[0] = Sol.send(arguments[0], "toInteger");
 		    return a == (int)arguments[0].getData(Classes.Integer) ?
@@ -471,6 +584,9 @@ public class Runtime {
 	Classes.IntegerMethods.put(Message.utilityParse("!="), new SolFunction() {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
 		    int a = (int)self.getData();
+		    if(arguments[0].typecheck(Classes.Double))
+			return a != (double)arguments[0].getData() ?
+			    Classes.True.get() : Classes.False.get();
 		    if(!arguments[0].typecheck(Classes.Integer))
 			arguments[0] = Sol.send(arguments[0], "toInteger");
 		    return a != (int)arguments[0].getData(Classes.Integer) ?
@@ -479,6 +595,9 @@ public class Runtime {
 	Classes.IntegerMethods.put(Message.utilityParse("<"), new SolFunction() {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
 		    int a = (int)self.getData();
+		    if(arguments[0].typecheck(Classes.Double))
+			return a < (double)arguments[0].getData() ?
+			    Classes.True.get() : Classes.False.get();
 		    if(!arguments[0].typecheck(Classes.Integer))
 			arguments[0] = Sol.send(arguments[0], "toInteger");
 		    return a < (int)arguments[0].getData(Classes.Integer) ?
@@ -505,6 +624,10 @@ public class Runtime {
 	Classes.DoubleMethods.put(Message.utilityParse("toInteger"), new SolFunction() {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
 		    return new Sol(Classes.Integer, (int)(double)self.getData());
+		}});
+	Classes.DoubleMethods.put(Message.utilityParse("serialize"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    return new Sol(Classes.Bytes, ByteBuffer.allocate(8).putDouble((double)self.getData()).array());
 		}});
 	Classes.DoubleMethods.put(Message.utilityParse("+"), new SolFunction() {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
@@ -580,6 +703,18 @@ public class Runtime {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
 		    return new Sol(Classes.Integer, (int)(char)self.getData());
 		}});
+	Classes.CharacterMethods.put(Message.utilityParse("toInteger"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    return new Sol(Classes.Integer, (int)(char)self.getData());
+		}});
+	Classes.CharacterMethods.put(Message.utilityParse("toByte"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    return new Sol(Classes.Byte, (byte)(char)self.getData());
+		}});
+	Classes.CharacterMethods.put(Message.utilityParse("serialize"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    return new Sol(Classes.Bytes, ByteBuffer.allocate(1).putChar((char)self.getData()).array());
+		}});
 	Classes.CharacterMethods.put(Message.utilityParse("+"), new SolFunction() {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
 		    char a = (char)self.getData();
@@ -627,6 +762,10 @@ public class Runtime {
 		    self.setData("");
 		    return self;
 		}});
+	Classes.StringMethods.put(Message.utilityParse("serialize"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    return new Sol(Classes.Bytes, ((String)self.getData()).getBytes());
+		}});
 	Classes.StringMethods.put(Message.utilityParse("+"), new SolFunction() {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
 		    String a = (String)self.getData();
@@ -637,7 +776,7 @@ public class Runtime {
 		    arguments[0] = Sol.send(arguments[0], "toString");
 		    return new Sol(Classes.String, a + (String)arguments[0].getData(Classes.String));
 		}});
-	Classes.StringMethods.put(Message.utilityParse("+="), new SolFunction() {
+	/*Classes.StringMethods.put(Message.utilityParse("+="), new SolFunction() {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
 		    String a = (String)self.getData();
 		    if(arguments[0].typecheck(Classes.String))
@@ -649,7 +788,7 @@ public class Runtime {
 			a.concat((String)arguments[0].getData());
 		    }
 		    return self;
-		}});
+		    }});*/
 	Classes.StringMethods.put(Message.utilityParse("toString"), new SolFunction() {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
 		    return new Sol(Classes.String, "\"" + (String)self.getData() + "\"");
@@ -735,5 +874,362 @@ public class Runtime {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
 		    return new Sol(Classes.String, "#" + ((Message)self.getData()).toString());
 		}});
+	//----------------------------------------------------------------------
+	//----------------------------------------------------------------------
+	//----------------------------------------------------------------------
+	//----------------------------------------------------------------------
+	Classes.ThreadClassMethods.put(Message.utilityParse("new:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    Lambda lambda = (Lambda)arguments[0].getData(Classes.Lambda);
+		    return new Sol(Classes.Thread, new SolThread(lambda));
+		}});
+	Classes.ThreadClassMethods.put(Message.utilityParse("current"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    return new Sol(Classes.Thread, Thread.currentThread());
+		}});
+	Classes.ThreadClassMethods.put(Message.utilityParse("run:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    Lambda lambda = (Lambda)arguments[0].getData(Classes.Lambda);
+		    new SolThread(lambda).start();
+		    return null;
+		}});
+	//----------------------------------------
+	Classes.ThreadMethods.put(Message.utilityParse("run"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    Thread thread = (Thread)self.getData();
+		    thread.start(); return null;
+		}});	
+	Classes.ThreadMethods.put(Message.utilityParse("sleep:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    Thread thread = (Thread)self.getData();
+		    int time = (int)arguments[0].getData(Classes.Integer);
+		    thread.sleep(time); return null;
+		}});	
+	Classes.ThreadMethods.put(Message.utilityParse("join"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    Thread thread = (Thread)self.getData();
+		    thread.join(); return null;
+		}});	
+	//----------------------------------------------------------------------
+	Classes.OutputFileClassMethods.put(Message.utilityParse("open:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    String file = (String)arguments[0].getData(Classes.String);
+		    return new Sol(Classes.OutputFile, new FileOutputStream(file));
+		}});
+	Classes.OutputFileClassMethods.put(Message.utilityParse("append:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    String file = (String)arguments[0].getData(Classes.String);
+		    return new Sol(Classes.OutputFile, new FileOutputStream(file, true));
+		}});
+	//----------------------------------------
+	Classes.OutputFileMethods.put(Message.utilityParse("write:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    FileOutputStream file = (FileOutputStream)self.getData();
+		    if(arguments[0].typecheck(Classes.Byte))
+			file.write((byte)arguments[0].getData()); 
+		    else if(arguments[0].typecheck(Classes.Character))
+			file.write((byte)(char)arguments[0].getData());
+		    else {
+			Sol bytes = Sol.send(arguments[0], "serialize");
+			file.write((byte[])bytes.getData(Classes.Bytes));
+		    }
+		    return self;
+		}});	
+	Classes.OutputFileMethods.put(Message.utilityParse("writeLine:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    Sol.send(self, new String[]{"write"}, new Sol[]{arguments[0]});
+		    FileOutputStream file = (FileOutputStream)self.getData();
+		    file.write('\n');
+		    return self;
+		}});	
+	Classes.OutputFileMethods.put(Message.utilityParse("close"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    FileOutputStream file = (FileOutputStream)self.getData();
+		    file.close(); return null;
+		}});	
+	//----------------------------------------------------------------------
+	Classes.InputFileClassMethods.put(Message.utilityParse("open:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    String file = (String)arguments[0].getData(Classes.String);
+		    return new Sol(Classes.InputFile, new FileInputStream(file));
+		}});
+	//----------------------------------------
+	Classes.InputFileMethods.put(Message.utilityParse("readCharacter"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    return Sol.send(Sol.send(self, "read"), "toCharacter");
+		}});	
+	Classes.InputFileMethods.put(Message.utilityParse("read"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    FileInputStream file = (FileInputStream)self.getData();
+		    return new Sol(Classes.Integer, file.read());
+		}});
+	Classes.InputFileMethods.put(Message.utilityParse("read:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    FileInputStream file = (FileInputStream)self.getData();
+		    int number = (int)arguments[0].getData(Classes.Integer);
+		    byte[] bytes = new byte[number];
+		    if(file.read(bytes) == 0)
+			return null;
+		    return new Sol(Classes.Bytes, bytes);
+		}});
+	Classes.InputFileMethods.put(Message.utilityParse("readLine"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    FileInputStream file = (FileInputStream)self.getData();
+		    StringBuilder stringBuilder = new StringBuilder();
+		    int c;
+		    for(c = file.read(); c != '\n' && c != -1; c = file.read())
+			stringBuilder.append((char)c);
+		    if(c == -1 && stringBuilder.length() == 0)
+			return null;
+		    return new Sol(Classes.String, stringBuilder.toString());
+		}});
+	Classes.InputFileMethods.put(Message.utilityParse("availableBytes"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    FileInputStream file = (FileInputStream)self.getData();
+		    return new Sol(Classes.Integer, file.available());
+		}});
+	Classes.InputFileMethods.put(Message.utilityParse("hasCharacters"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    FileInputStream file = (FileInputStream)self.getData();
+		    return file.available() > 0 ? Classes.True.get() : Classes.False.get();
+		}});	
+	Classes.InputFileMethods.put(Message.utilityParse("close"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    FileInputStream file = (FileInputStream)self.getData();
+		    file.close(); return null;
+		}});	
+	//----------------------------------------------------------------------
+	Classes.ByteMethods.put(Message.utilityParse("initialize"), new SolFunction() { 
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    self.setData((byte)0);
+		    return self;
+		}});
+	Classes.ByteMethods.put(Message.utilityParse("serialize"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    return new Sol(Classes.Bytes, ByteBuffer.allocate(1).put((byte)self.getData()));
+		}});
+	Classes.ByteMethods.put(Message.utilityParse("+"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    byte a = (byte)self.getData();
+		    if(!arguments[0].typecheck(Classes.Byte))
+			arguments[0] = Sol.send(arguments[0], "toByte");
+		    return new Sol(Classes.Byte, a + (byte)arguments[0].getData(Classes.Byte));
+		}});
+	Classes.ByteMethods.put(Message.utilityParse("-"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    byte a = (byte)self.getData();
+		    if(!arguments[0].typecheck(Classes.Byte))
+			arguments[0] = Sol.send(arguments[0], "toByte");
+		    return new Sol(Classes.Byte, a - (byte)arguments[0].getData(Classes.Byte));
+		}});
+	Classes.ByteMethods.put(Message.utilityParse("toInteger"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    return new Sol(Classes.Integer, (int)(byte)self.getData());
+		}});
+	Classes.ByteMethods.put(Message.utilityParse("toCharacter"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    return new Sol(Classes.Character, (char)(byte)self.getData());
+		}});
+	Classes.ByteMethods.put(Message.utilityParse("toString"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    return new Sol(Classes.String, Byte.toString((byte)self.getData()));
+		}});
+	//----------------------------------------------------------------------
+	Classes.BytesMethods.put(Message.utilityParse("serialize"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    return self;
+		}});
+	Classes.BytesMethods.put(Message.utilityParse("at:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    int index = (int)arguments[0].getData(Classes.Integer);
+		    byte[] bytes = (byte[])self.getData();
+		    return new Sol(Classes.Byte, bytes[index]);
+		}});
+	Classes.BytesMethods.put(Message.utilityParse("size"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    return new Sol(Classes.Integer, ((byte[])self.getData()).length);
+		}});
+	Classes.BytesMethods.put(Message.utilityParse("asString"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    return new Sol(Classes.String, new String((byte[])self.getData()));
+		}});
+	Classes.BytesMethods.put(Message.utilityParse("toString"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    return new Sol(Classes.String, "<" + Integer.toString(((byte[])self.getData()).length) + " bytes>");
+		}});
+	//----------------------------------------------------------------------
+	Classes.SocketClassMethods.put(Message.utilityParse("host:port:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    String address = (String)arguments[0].getData(Classes.String);
+		    int port = (int)arguments[1].getData(Classes.Integer);
+		    return new Sol(Classes.Socket, new SolSocket(address, port));
+		}});
+	//----------------------------------------
+	Classes.SocketMethods.put(Message.utilityParse("send:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    SolSocket socket = (SolSocket)self.getData();
+		    if(arguments[0].typecheck(Classes.Byte))
+			socket.writeByte((byte)arguments[0].getData());
+		    else if(arguments[0].typecheck(Classes.Character))
+			socket.writeByte((byte)(char)arguments[0].getData());
+		    else {
+			Sol bytes = Sol.send(arguments[0], "serialize");
+			socket.writeBytes((byte[])bytes.getData(Classes.Bytes));
+		    }
+		    return self;
+		}});
+	Classes.SocketMethods.put(Message.utilityParse("receiveAll"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    SolSocket socket = (SolSocket)self.getData();
+		    byte[] bytes = socket.readBytes();
+		    return bytes == null ? null : new Sol(Classes.Bytes, bytes);
+		}});
+	Classes.SocketMethods.put(Message.utilityParse("receiveLine"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    SolSocket socket = (SolSocket)self.getData();
+		    String line = socket.readLine();
+		    return line == null ? null : new Sol(Classes.String, line);
+		}});
+	Classes.SocketMethods.put(Message.utilityParse("receive"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    SolSocket socket = (SolSocket)self.getData();
+		    return new Sol(Classes.Byte, (byte)socket.readByte());
+		}});
+	Classes.SocketMethods.put(Message.utilityParse("receive:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    SolSocket socket = (SolSocket)self.getData();
+		    int count = (int)arguments[0].getData(Classes.Integer);
+		    return new Sol(Classes.Bytes, (byte[])socket.readByte(count));
+		}});
+	Classes.SocketMethods.put(Message.utilityParse("availableBytes"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    SolSocket socket = (SolSocket)self.getData();
+		    return new Sol(Classes.Integer, socket.availableBytes());
+		}});
+	Classes.SocketMethods.put(Message.utilityParse("hasData"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    SolSocket socket = (SolSocket)self.getData();
+		    return socket.hasData() ? Classes.True.get() : Classes.False.get();
+		}});
+	Classes.SocketMethods.put(Message.utilityParse("isClosed"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    SolSocket socket = (SolSocket)self.getData();
+		    return socket.isClosed() ? Classes.True.get() : Classes.False.get();
+		}});
+	Classes.SocketMethods.put(Message.utilityParse("isConnected"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    SolSocket socket = (SolSocket)self.getData();
+		    return socket.isConnected() ? Classes.True.get() : Classes.False.get();
+		}});
+	Classes.SocketMethods.put(Message.utilityParse("close"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    SolSocket socket = (SolSocket)self.getData();
+		    socket.close();
+		    return null;
+		}});
+	//----------------------------------------------------------------------
+	Classes.ServerSocketClassMethods.put(Message.utilityParse("port:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    int port = (int)arguments[0].getData(Classes.Integer);
+		    return new Sol(Classes.ServerSocket, new ServerSocket(port));
+		}});
+	//----------------------------------------
+	Classes.ServerSocketMethods.put(Message.utilityParse("listen"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    ServerSocket server = (ServerSocket)self.getData();
+		    return new Sol(Classes.Socket, new SolSocket(server.accept()));
+		}});
+	Classes.ServerSocketMethods.put(Message.utilityParse("close"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    ServerSocket server = (ServerSocket)self.getData();
+		    server.close();
+		    return null;
+		}});
+	Classes.ServerSocketMethods.put(Message.utilityParse("isClosed"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    ServerSocket server = (ServerSocket)self.getData();
+		    return server.isClosed() ? Classes.True.get() : Classes.False.get();
+		}});
+	//----------------------------------------------------------------------
+	Classes.PatternClassMethods.put(Message.utilityParse("compile:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    String pattern = (String)arguments[0].getData(Classes.String);		    
+		    return new Sol(Classes.Pattern, Pattern.compile(pattern, Pattern.MULTILINE));
+		}});
+	Classes.PatternClassMethods.put(Message.utilityParse("compileInsensitive:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    String pattern = (String)arguments[0].getData(Classes.String);		    
+		    return new Sol(Classes.Pattern, Pattern.compile(Pattern.quote(pattern),
+								    Pattern.MULTILINE ||
+								    Pattern.CASE_INSENSITIVE));
+		}});
+	Classes.PatternClassMethods.put(Message.utilityParse("compileQuote:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    String pattern = (String)arguments[0].getData(Classes.String);		    
+		    return new Sol(Classes.Pattern, Pattern.compile(Pattern.quote(pattern),
+								    Pattern.MULTILINE));
+		}});
+	Classes.PatternClassMethods.put(Message.utilityParse("replace:with:on:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    String pattern     = (String)arguments[0].getData(Classes.String);
+		    String replacement = (String)arguments[1].getData(Classes.String);
+		    String data        = (String)arguments[2].getData(Classes.String);
+		    Matcher matcher = Pattern.compile(pattern, Pattern.MULTILINE).matcher(data);
+		    return new Sol(Classes.String, matcher.replaceAll(replacement));
+		}});
+	Classes.PatternClassMethods.put(Message.utilityParse("matches:on:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    String pattern = (String)arguments[0].getData(Classes.String);
+		    String data    = (String)arguments[1].getData(Classes.String);
+		    Matcher matcher = Pattern.compile(pattern, Pattern.MULTILINE).matcher(data);
+		    return matcher.matches() ? Classes.True.get() : Classes.False.get();
+		}});
+	Classes.PatternClassMethods.put(Message.utilityParse("match:on:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    String pattern = (String)arguments[0].getData(Classes.String);
+		    String data    = (String)arguments[1].getData(Classes.String);
+		    ArrayList<Sol> groups = new ArrayList<Sol>();
+		    Matcher matcher = Pattern.compile(pattern, Pattern.MULTILINE).matcher(data);
+		    if(!matcher.find()) return null;
+		    for(int i=1; i<=matcher.groupCount(); i++)
+			groups.add(new Sol(Classes.String, matcher.group(i)));
+		    return new Sol(Classes.Vector, groups);
+		}});
+	//----------------------------------------
+	Classes.PatternMethods.put(Message.utilityParse("matches:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    Pattern pattern = ((Pattern)self.getData());
+		    String data = (String)arguments[0].getData(Classes.String);
+		    Matcher matcher = pattern.matcher(data);
+		    return matcher.matches() ? Classes.True.get() : Classes.False.get();
+		}});
+	Classes.PatternMethods.put(Message.utilityParse("match:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    Pattern pattern = ((Pattern)self.getData());
+		    String data = (String)arguments[0].getData(Classes.String);
+		    ArrayList<Sol> groups = new ArrayList<Sol>();
+		    Matcher matcher = pattern.matcher(data);
+		    if(!matcher.find()) return null;
+		    for(int i=1; i<=matcher.groupCount(); i++)
+			groups.add(new Sol(Classes.String, matcher.group(i)));
+		    return new Sol(Classes.Vector, groups);
+		}});
+	Classes.PatternMethods.put(Message.utilityParse("replaceWith:in:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    Pattern pattern = ((Pattern)self.getData());
+		    String replacement = (String)arguments[0].getData(Classes.String);
+		    String data = (String)arguments[1].getData(Classes.String);
+		    Matcher matcher = pattern.matcher(data);
+		    return new Sol(Classes.String, matcher.replaceAll(replacement));
+		}});
+	Classes.PatternMethods.put(Message.utilityParse("replaceFirstWith:in:"), new SolFunction() {
+		public Sol call(Sol self, Sol[] arguments) throws Exception {
+		    Pattern pattern = ((Pattern)self.getData());
+		    String replacement = (String)arguments[0].getData(Classes.String);
+		    String data = (String)arguments[1].getData(Classes.String);
+		    Matcher matcher = pattern.matcher(data);
+		    return new Sol(Classes.String, matcher.replaceFirst(replacement));
+		}});
+	    
     }
 }

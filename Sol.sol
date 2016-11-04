@@ -1,3 +1,4 @@
+Description defineAccessors.
 Class defineAccessors.
 
 @ Class subclass @ {
@@ -16,34 +17,34 @@ SelfDescriptive = Class subclass; name: "SelfDescriptive".
     self class: self.
 }.
 
-True = SelfDescriptive new; name: "True".
-False = SelfDescriptive new; name: "False".
+@ True  class toString @ { "True" }.
+@ False class toString @ { "False" }.
 
-@ True  and: b  @ { b }.
-@ True  or:  b  @ { True }.
-@ True  not @ { False }.
-@ False and: b  @ { False }.
-@ False or:  b  @ { b }.
-@ False not @ { True }.
+@ True class  and: b  @ { b }.
+@ True class  or:  b  @ { True }.
+@ True class  not @ { False }.
+@ False class and: b  @ { False }.
+@ False class or:  b  @ { b }.
+@ False class not @ { True }.
 
-@ True  ifTrue: true ifFalse: false @ { true value }.
-@ True  ifFalse: false ifTrue: true @ { true value }.
-@ True  ifTrue: true @ { true value }.
-@ True  => true @ { true value }.
-@ True  ifFalse: false @ { }.
+@ True class  ifTrue: true ifFalse: false @ { true value }.
+@ True class  ifFalse: false ifTrue: true @ { true value }.
+@ True class  ifTrue: true @ { true value }.
+@ True class  => true @ { true value }.
+@ True class  ifFalse: false @ { }.
 
-@ False ifTrue: true ifFalse: false @ { false value }.
-@ False ifFalse: false ifTrue: true @ { false value }.
-@ False ifFalse: false @ { false value }.
-@ False ifTrue: true @ { }.
-@ False => true @ { }.
+@ False class ifTrue: true ifFalse: false @ { false value }.
+@ False class ifFalse: false ifTrue: true @ { false value }.
+@ False class ifFalse: false @ { false value }.
+@ False class ifTrue: true @ { }.
+@ False class => true @ { }.
 
-TruePromise = Class new; name: "TruePromise"; instanceVariables: [#promise].
+TruePromise = Class new; name: "TruePromise"; variables: [#promise].
 @ TruePromise promise: promise @ { promise = promise }.
-FalsePromise = SelfDescriptive new; name: "FalsePromise"; instanceVariables: [].
+FalsePromise = SelfDescriptive new; name: "FalsePromise"; variables: [].
 
-@ True  ? promise @ { TruePromise new promise: promise. }.
-@ False ? promise @ { FalsePromise }.
+@ True class  ? promise @ { TruePromise new promise: promise. }.
+@ False class ? promise @ { FalsePromise }.
 @ TruePromise : false @ { promise value }.
 @ FalsePromise : false @ { false value }.
 
@@ -168,19 +169,4 @@ Double superclass: Number.
       value = function values: [value, element].
     }.
     value}
-}.
-
-Metaclass = Class subclass; name: "Metaclass";
-    instanceVariables: [#uniqueInstance]; defineAccessors.
-@ Metaclass new @ {
-    uniqueInstance == nothing 
-        => {uniqueInstance = super new}.
-    uniqueInstance.
-}.
-@ Class metaclassify @ {
-    self class:
-        (Metaclass new;
-            superclass: self superclass class;
-            uniqueInstance: self;
-            name: self name + " class").
 }.

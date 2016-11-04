@@ -5,7 +5,7 @@ Infinito = SelfDescriptive new; name: "Infinito".
 @ Infinito toString @ { "Inf" }.
 --------------------------------------------------------------------------------
 Nodo = Class new; name: "Nodo";
-    instanceVariables: [#archi, #nome, #visitato, #distanza]; defineAccessors.
+    variables: [#archi, #nome, #visitato, #distanza]; defineAccessors.
 @ Nodo initialize @ { archi = []. visitato = False. distanza = Infinito. }.
 @ Nodo toString @ {
     "Nodo " + nome + ", " + (visitato ? "già" : "non") + " visitato, distanza: " +
@@ -25,12 +25,12 @@ Nodo = Class new; name: "Nodo";
 }.
 --------------------------------------------------------------------------------
 Arco = Class new; name: "Arco";
-    instanceVariables: [#next, #peso, #minimo]; defineAccessors.
+    variables: [#next, #peso, #minimo]; defineAccessors.
 @ Arco initialize @ { minimo = False }.
 @ Arco toString @ { "-(" + peso + ")->" + next }.
 --------------------------------------------------------------------------------
 Grafo = Class new; name: "Grafo";
-    instanceVariables: [#nodi]; defineAccessors.
+    variables: [#nodi]; defineAccessors.
 @ Grafo initialize @ { nodi = []. }.
 @ Grafo sorgente: sorgente @ {
     sorgente distanza: 0; visitato: True

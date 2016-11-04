@@ -5,32 +5,44 @@ public class Sol {
     Sol clazz;
     HashMap<String,Sol> variables;
     Object data;
-    Sol() {
-	this.variables = new HashMap<String,Sol>();
-    }
+    Sol() { }
     Sol(Reference<Sol> clazz) {
 	this.clazz = clazz.get();
-	this.variables = new HashMap<String,Sol>();
     }
     Sol(Sol clazz) {
 	this.clazz = clazz;
-	this.variables = new HashMap<String,Sol>();
     }
     Sol(Reference<Sol> clazz, Object data) {
 	this(clazz.get(), data);
     }
     Sol(Sol clazz, Object data) {
 	this.clazz = clazz;
-	this.variables = new HashMap<String,Sol>();
 	this.data = data;
     }
-    public Sol getClazz() { return this.clazz; }
+    public static Sol getClass(Sol object) { return object == null ? Classes.Nothing.get() : object.clazz; }
     public void setClass(Sol clazz) { this.clazz = clazz; }
-    public boolean hasVariable(String variable) { return this.variables.containsKey(variable); }
-    public Sol getVariable(String variable) { return this.variables.get(variable); }
-    public void setVariable(String variable, Sol value) { this.variables.put(variable, value); }
-    public void defineVariable(String variable) { this.variables.put(variable, null); }
-    public void defineVariable(String variable, Sol value) { this.variables.put(variable, value); }
+    public HashMap<String,Sol> getVariables() { return this.variables; }
+    public boolean hasVariable(String variable) {
+	return this.variables == null ? false : this.variables.containsKey(variable);
+    }
+    public Sol getVariable(String variable) {
+	return this.variables == null ? null : this.variables.get(variable);
+    }
+    public void setVariable(String variable, Sol value) {
+	if(this.variables == null)
+	    this.variables = new HashMap<String,Sol>();
+	this.variables.put(variable, value);
+    }
+    public void defineVariable(String variable) {
+	if(this.variables == null)
+	    this.variables = new HashMap<String,Sol>();
+	this.variables.put(variable, null);
+    }
+    public void defineVariable(String variable, Sol value) {
+	if(this.variables == null)
+	    this.variables = new HashMap<String,Sol>();
+	this.variables.put(variable, value);
+    }
     public Object getData() { return this.data; }
     public boolean typecheck(Reference<Sol> clazz) {
 	return this.clazz == clazz.get();
@@ -59,11 +71,13 @@ public class Sol {
 	    throw new RuntimeException("Attempting to send " + message.toString() + " to a classless object.");
 	for(Sol clazz = startingClass; clazz != null; clazz = clazz.getVariable("superclass")) {
 	    Sol methodsObject = clazz.getVariable("methods");
+	    if(methodsObject == null)
+		continue;
 	    HashMap<Message,Sol> methodMap = (HashMap<Message,Sol>)methodsObject.getData(Classes.MessageDictionary);
 	    if(methodMap.containsKey(message)) {
 		Sol method = methodMap.get(message);
 		if(method == null)
-		    break;
+		    continue;
 		else if(method.typecheck(Classes.BuiltinMethod)) {
 		    if(message.getParametersNumber() != arguments.length)
 			throw new RuntimeException("Attempting to send " + message.toString() + " to an instance of " +
@@ -141,7 +155,7 @@ public class Sol {
 	System.out.println("       Copyright (C) 2016 Iwilare");
 	System.out.println();
     }
-    public static Sol evalStream(Environment environment, CharacterStream stream) throws Exception {
+    public static Sol evalStream(CharacterStream stream) throws Exception {
 	System.err.println("-------------- Tokenizer -------------");
 		
 	Tokenizer tokenizer = new Tokenizer(stream);
@@ -162,25 +176,24 @@ public class Sol {
 	    System.err.println(atom.toString());
 	System.err.println("------------- Evaluation -------------");
 
-	return Evaluator.eval(atom, environment);
+	return Evaluator.eval(atom, Classes.GlobalEnvironment);
     }
     public static void main(String[] args) {
 	printGreetings();
 
-	Environment environment = new Environment();
 	SolArguments arguments = new SolArguments(args);
 	
 	Runtime.initialize();
 	Classes.initialize();
-	Classes.populate(environment);
 
-	try { evalStream(environment, new FileStream("Sol.sol")); }
-	catch(SolException c) { System.err.println(c.getMessage()); }
-	catch(IOException c)  { System.err.println("Unable to find initalization file Sol.sol."); }
-	catch(Exception c)    { c.printStackTrace(); }
+	if(arguments.evalSolInitialization())
+	    try { evalStream(new FileStream("Sol.sol")); }
+	    catch(SolException c) { System.err.println(c.getMessage()); }
+	    catch(IOException c)  { System.err.println("Unable to find initalization file Sol.sol."); }
+	    catch(Exception c)    { c.printStackTrace(); }
 	
 	for(String filename : arguments.getFiles())
-	    try { evalStream(environment, new FileStream(filename)); }
+	    try { evalStream(new FileStream(filename)); }
 	    catch(SolException c) { System.err.println(c.getMessage()); }
 	    catch(IOException c)  { System.err.println("Unable to find \"" + filename + "\""); }
 	    catch(Exception c)    { c.printStackTrace(); }
@@ -190,7 +203,7 @@ public class Sol {
 		System.out.print("> ");
 		String line = new Scanner(System.in).nextLine();
 		CharacterStream stream = new StringStream(line);
-		Sol value = evalStream(environment, stream);
+		Sol value = evalStream(stream);
 		if(value != null)
 		    Sol.send(Sol.send(value, "toString"), "printLine");
 	    }

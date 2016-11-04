@@ -21,7 +21,7 @@ public class Lambda {
 	throw new EvaluationRequest(body, self, contextClass, lambdaEnvironment);
     }
     public void eval(Sol self, Sol[] arguments) throws EvaluationRequest, RuntimeException {
-	eval(self, arguments, self == null ? null : self.getClazz());
+	eval(self, arguments, Sol.getClass(self));
     }
     public void eval(Sol[] arguments) throws EvaluationRequest, RuntimeException {
 	eval(lexicalSelf, arguments);

@@ -8,7 +8,8 @@ public class Evaluator {
 	return eval(atom, null, null, environment);
     }
     public static Sol eval(Atom atom, Sol self, Sol contextClass, Environment environment) throws Exception {
-	while(true) 
+	while(true) {
+	    //System.out.println(atom);
 	    if(atom == null)
 		return null;
 	    else if(atom instanceof MessageAtom) {
@@ -23,7 +24,7 @@ public class Evaluator {
 		    clazz = contextClass.getVariable("superclass");
 		} else {
 		    receiver = eval(messageReceiver, self, contextClass, environment);
-		    clazz = receiver == null ? Classes.Nothing.get() : receiver.getClazz();
+		    clazz = Sol.getClass(receiver);
 		}
 
 		Atom[] messageArguments = messageAtom.getArguments();
@@ -105,5 +106,7 @@ public class Evaluator {
 	    } else {
 		System.out.println("Fatal error, unrecognized Atom.");
 	    }
+
+	}
     }
 }
