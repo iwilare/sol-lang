@@ -233,7 +233,7 @@ public class Runtime {
 		    self.setVariable("name", new Sol(Classes.String, "<Anonymous class>"));
 		    return self;
 		}});
-	Classes.DescriptionMethods.put(Message.utilityParse("basicNew"), new SolFunction() {
+	Classes.ClassMethods.put(Message.utilityParse("basicNew"), new SolFunction() {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
 		    return new Sol(self);
 		}});
@@ -1160,7 +1160,7 @@ public class Runtime {
 		public Sol call(Sol self, Sol[] arguments) throws Exception {
 		    String pattern = (String)arguments[0].getData(Classes.String);		    
 		    return new Sol(Classes.Pattern, Pattern.compile(Pattern.quote(pattern),
-								    Pattern.MULTILINE ||
+								    Pattern.MULTILINE +
 								    Pattern.CASE_INSENSITIVE));
 		}});
 	Classes.PatternClassMethods.put(Message.utilityParse("compileQuote:"), new SolFunction() {

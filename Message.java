@@ -1,7 +1,10 @@
+import java.io.*;
+import java.nio.*;
 import java.util.*;
 
 public abstract class Message {
     public abstract int getParametersNumber();
+    public abstract byte[] serialize();
     public boolean equals(Object that) { 
 	return hashCode() == that.hashCode();
     }
@@ -36,12 +39,16 @@ class UnaryMessage extends Message {
     public KeywordMessage toKeywordMessage() {
 	return new KeywordMessage(new String[]{message});
     }
-    /*public boolean equals(Object message) {
-	if(!(message instanceof UnaryMessage))
-	    return false;
-	UnaryMessage that = (UnaryMessage)message;
-	return this.message.equals(that.message);
-    }*/
+    public byte[] serialize() {
+	byte[] stringBytes = message.getBytes();
+	ByteBuffer bytes = ByteBuffer.allocate(stringBytes.length + 1);
+	bytes.put(stringBytes);
+	bytes.put((byte)0);
+	return bytes.array();
+    }
+    public static UnaryMessage deserialize(ByteBuffer bytes) {
+	return new UnaryMessage(Instruction.deserializeString(bytes));
+    }
 }
 class BinaryMessage extends Message {
     String message;
@@ -50,12 +57,16 @@ class BinaryMessage extends Message {
     public int getParametersNumber() { return 1; }
     public String toString() { return message; }
     public int hashCode() { return 1 + message.hashCode(); }
-    /*public boolean equals(Object message) {
-	if(!(message instanceof BinaryMessage))
-	    return false;
-	BinaryMessage that = (BinaryMessage)message;
-	return this.message.equals(that.message);
-    }*/
+    public byte[] serialize() {
+	byte[] stringBytes = message.getBytes();
+	ByteBuffer bytes = ByteBuffer.allocate(stringBytes.length + 1);
+	bytes.put(stringBytes);
+	bytes.put((byte)0);
+	return bytes.array();
+    }
+    public static BinaryMessage deserialize(ByteBuffer bytes) {
+	return new BinaryMessage(Instruction.deserializeString(bytes));
+    }
 }
 class KeywordMessage extends Message {
     String[] keywords;
@@ -74,15 +85,29 @@ class KeywordMessage extends Message {
 	    hashCode += keyword.hashCode() * i++;
 	return hashCode;
     }
-    /*public boolean equals(Object message) {
-	if(!(message instanceof KeywordMessage))
-	    return false;
-	KeywordMessage that = (KeywordMessage)message;
-	if(this.keywords.length != that.keywords.length)
-	    return false;
-	for(int i=0; i<keywords.length; i++)
-	    if(!this.keywords[i].equals(that.keywords[i]))
-		return false;
-	return true;
-	}*/
+    public byte[] serialize() {
+	if(keywords.length > 256)
+	    ;//throw new RuntimeException("Fatal decoding error.");
+	int totalBytes = 0;
+	ArrayList<byte[]> stringsBytes = new ArrayList<byte[]>();
+	for(String keyword : keywords) {
+	    byte[] stringBytes = keyword.getBytes();
+	    stringsBytes.add(stringBytes);
+	    totalBytes += stringBytes.length + 1;
+	}
+	ByteBuffer bytes = ByteBuffer.allocate(1 + totalBytes);
+	bytes.put((byte)stringsBytes.size());
+	for(byte[] stringBytes : stringsBytes) {
+	    bytes.put(stringBytes);
+	    bytes.put((byte)0);
+	}
+	return bytes.array();
+    }
+    public static KeywordMessage deserialize(ByteBuffer bytes) {
+	byte size = bytes.get();
+	String[] keywords = new String[size];
+	for(int i=0; i<size; i++)
+	    keywords[i] = Instruction.deserializeString(bytes);
+	return new KeywordMessage(keywords);
+    }
 }
