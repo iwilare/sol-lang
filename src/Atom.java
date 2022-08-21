@@ -6,16 +6,16 @@ abstract class Atom {
     public void setLocation(Location location) { this.location = location; }
     public Location getLocation() { return location; }
     public String completeToString() {
-	return location.toString() + "    " + toString();
+        return location.toString() + "    " + toString();
     }
     public static String vectorToString(Atom[] vector, String sep) {
-	if(vector.length == 0)
-	    return "";
-	String s = "";
-	for(int i=0; i<vector.length-1; i++)
-	    s += vector[i].toString() + sep;
-	s += vector[vector.length-1];
-	return s;
+        if(vector.length == 0)
+            return "";
+        String s = "";
+        for(int i=0; i<vector.length-1; i++)
+            s += vector[i].toString() + sep;
+        s += vector[vector.length-1];
+        return s;
     }
 }
 abstract class MessageAtom extends Atom {
@@ -27,42 +27,42 @@ abstract class MessageAtom extends Atom {
 class UnaryMessageAtom extends MessageAtom {
     UnaryMessage message;
     UnaryMessageAtom(Atom receiver, UnaryMessage message) {
-	this.receiver = receiver;
-	this.message = message;
+        this.receiver = receiver;
+        this.message = message;
     }
     public Message getMessage() { return this.message; }
     public Atom[] getArguments() { return new Atom[]{}; }
-    
+
     public String toString() { return "(" + receiver + ") " + message; }
 }
 class BinaryMessageAtom extends MessageAtom {
     BinaryMessage message;
     Atom argument;
     BinaryMessageAtom(Atom receiver, BinaryMessage message, Atom argument) {
-	this.receiver = receiver;
-	this.message = message;
-	this.argument = argument;
+        this.receiver = receiver;
+        this.message = message;
+        this.argument = argument;
     }
     public Message getMessage() { return this.message; }
-    public Atom[] getArguments() { return new Atom[]{argument}; }    
+    public Atom[] getArguments() { return new Atom[]{argument}; }
     public String toString() { return "(" + receiver + ") " + message + " (" + argument + ")"; }
 }
 class KeywordMessageAtom extends MessageAtom {
     KeywordMessage message;
     Atom[] arguments;
     KeywordMessageAtom(Atom receiver, KeywordMessage message, Atom arguments[] ) {
-	this.receiver = receiver;
-	this.message = message;
-	this.arguments = arguments;
+        this.receiver = receiver;
+        this.message = message;
+        this.arguments = arguments;
     }
     public Message getMessage() { return this.message; }
     public Atom[] getArguments() { return this.arguments; }
     public String toString() {
-	String s = "(" + receiver + ")";
-	String[] keywords = message.getKeywords();
-	for(int i=0; i<keywords.length; i++)
-	    s += " " + keywords[i] + ": (" + arguments[i] + ")";
-	return s;
+        String s = "(" + receiver + ")";
+        String[] keywords = message.getKeywords();
+        for(int i=0; i<keywords.length; i++)
+            s += " " + keywords[i] + ": (" + arguments[i] + ")";
+        return s;
     }
 }
 class IdentifierAtom extends Atom {
@@ -75,19 +75,19 @@ class LambdaAtom extends Atom {
     Atom body;
     String[] parameters;
     LambdaAtom(Atom body, String[] parameters) {
-	this.body = body;
-	this.parameters = parameters;
+        this.body = body;
+        this.parameters = parameters;
     }
     public Atom getBody() { return this.body; }
     public String[] getParameters() { return this.parameters; }
     public String toString() {
-	return "{" + (parameters.length > 0 ? Arrays.toString(parameters) + " | " : "") +
-	    (body == null ? "" : body)+ "}"; }
+        return "{" + (parameters.length > 0 ? Arrays.toString(parameters) + " | " : "") +
+            (body == null ? "" : body)+ "}"; }
 }
 class SequenceAtom extends Atom {
     Atom[] sequence;
     SequenceAtom(Atom[] sequence) {
-	this.sequence = sequence;
+        this.sequence = sequence;
     }
     public Atom[] getSequence() { return this.sequence; }
     public String toString() { return "(" + Atom.vectorToString(sequence, ". ") + ")"; }
@@ -96,8 +96,8 @@ class AssignmentAtom extends Atom {
     String variable;
     Atom expression;
     AssignmentAtom(String variable, Atom expression) {
-	this.variable = variable;
-	this.expression = expression;
+        this.variable = variable;
+        this.expression = expression;
     }
     public String getVariable() { return this.variable; }
     public Atom getExpression() { return this.expression; }
@@ -106,7 +106,7 @@ class AssignmentAtom extends Atom {
 class VectorAtom extends Atom {
     Atom[] vector;
     VectorAtom(Atom[] vector) {
-	this.vector = vector;
+        this.vector = vector;
     }
     public Atom[] getVector() { return this.vector; }
     public String toString() { return "[" + Atom.vectorToString(vector, ",") + "]"; }

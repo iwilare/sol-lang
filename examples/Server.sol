@@ -7,7 +7,7 @@ server = ServerSocket port: 60000.
      data ifNothing: {#EmptyData throw}.
      http = data asString.
      http ifNothing: {#EmptyRequestError throw}.
-     "--- Richiesta ricevuta ---" printLine.
+     "--- Request received ---" printLine.
      http print.
      request = Pattern match: "GET ([^?]*)(\\?.*)? HTTP" on: http.
      request ifNothing: {#EmptyRequestError throw}.
@@ -17,19 +17,19 @@ server = ServerSocket port: 60000.
      request size == 2 ifTrue: {
         requestedFile = request first.
         parameterString = request second.
-	"||| Parameter string: " print.
-	parameterString printLine.
+        "||| Parameter string: " print.
+        parameterString printLine.
         parameterList = Pattern matchVector: "[?&]([^?&]*)" on: parameterString.
-	parameterList = parameterList map: {x | Pattern match: "(.*)=(.*)" on: x}.
-	"||| Parameter list: " print.
-	parameterList printLine.
-	GET = StringDictionary new.
-	parameterList map: { parameter | GET at: parameter first set: parameter second }.
+        parameterList = parameterList map: {x | Pattern match: "(.*)=(.*)" on: x}.
+        "||| Parameter list: " print.
+        parameterList printLine.
+        GET = StringDictionary new.
+        parameterList map: { parameter | GET at: parameter first set: parameter second }.
      }.
      requestedFile == "/" ifTrue: {requestedFile = "index.html"}.
-     "---- File richiesto ---- " printLine.
+     "---- Requested file ---- " printLine.
      requestedFile printLine.
-     "---- Richiesta GET ----" printLine.
+     "---- GET request ----" printLine.
      GET printLine.
      file = InputFile read: "" + requestedFile.
      client send: "HTTP/1.1 200 OK\n\n".

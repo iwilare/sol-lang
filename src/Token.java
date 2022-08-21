@@ -3,21 +3,21 @@ abstract class Token {
     public void setLocation(Location location) { this.location = location; }
     public Location getLocation() { return location; }
     public String toCompleteString() {
-	return location.toString() + "    " + toString();
+        return location.toString() + "    " + toString();
     }
     public boolean isObjectStart() {
-	return
-	    this instanceof BinaryOperatorToken && ((BinaryOperatorToken)this).getBinaryOperator().equals("-")
-	    || this instanceof IdentifierToken
-	    || this instanceof IntegerToken
-	    || this instanceof DoubleToken
-	    || this instanceof CharacterToken
-	    || this instanceof StringToken
-	    || this instanceof MessageToken
-	    || this instanceof LambdaStartToken
-	    || this instanceof MethodMarkToken
-	    || this instanceof VectorStartToken
-	    || this instanceof ParenthesisOpenToken;
+        return
+            this instanceof BinaryOperatorToken && ((BinaryOperatorToken)this).getBinaryOperator().equals("-")
+            || this instanceof IdentifierToken
+            || this instanceof IntegerToken
+            || this instanceof DoubleToken
+            || this instanceof CharacterToken
+            || this instanceof StringToken
+            || this instanceof MessageToken
+            || this instanceof LambdaStartToken
+            || this instanceof MethodMarkToken
+            || this instanceof VectorStartToken
+            || this instanceof ParenthesisOpenToken;
     }
 }
 class IntegerToken extends Token {

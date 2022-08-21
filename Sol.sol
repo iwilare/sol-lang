@@ -91,7 +91,7 @@ Double superclass: Number.
   times == 0 ? nothing : {self value. self repeat: times-1}.
 }.
 @ Integer fact @ {
-  self == 0 
+  self == 0
     ifTrue: {1}
     ifFalse: {self * (self - 1) fact}
 }.
@@ -121,7 +121,7 @@ Double superclass: Number.
         ifTrue: {vector push: (self at: i)}.
      i = i next.
   }.
-  vector. 
+  vector.
 }.
 @ Vector filter: predicate do: action @ {
   i = 0.
@@ -145,7 +145,7 @@ Double superclass: Number.
 @ Vector find: predicate from: i @ {
   (i >= self size) ? nothing : {
         (predicate value: (self at: i)) ?
-	   {self at: i} :
+           {self at: i} :
            {self find: predicate from: i next}}
 }.
 @ Vector reduce: function with: value @ {
@@ -157,7 +157,7 @@ Double superclass: Number.
 @ Vector reduce: function @ {
   self size == 0 ? nothing : {
     value = self first.
-    self from: 1 do: {element | 
+    self from: 1 do: {element |
       value = function values: [value, element].
     }.
     value}
